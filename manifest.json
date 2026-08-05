@@ -30,6 +30,36 @@
     { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "icons/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
   ],
+  "screenshots": [
+    {
+      "src": "screenshots/holdem-fold.png",
+      "sizes": "1600x758",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Hold'em - Fold-rekommendation med pott-odds-kalkylator"
+    },
+    {
+      "src": "screenshots/holdem-call.png",
+      "sizes": "1600x758",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Hold'em - Equity per gata och strategiskt råd"
+    },
+    {
+      "src": "screenshots/plo4-raise.png",
+      "sizes": "1600x758",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "PLO (4 kort) - Raise-rekommendation vid stark hand"
+    },
+    {
+      "src": "screenshots/plo5-check.png",
+      "sizes": "1600x758",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "PLO (5 kort) - Oddsmotor med sannolikheter per handtyp"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Texas Hold'em",

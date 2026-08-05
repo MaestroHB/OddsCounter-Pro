@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Oddsräknare: Hold'em & Omaha",
-  "short_name": "Oddsräknare",
+  "name": "OddsCounter-Pro: Hold'em & Omaha",
+  "short_name": "OddsCounter-Pro",
   "description": "Räkna ut poker-odds och vinstchanser i realtid för Texas Hold'em och Omaha (4/5 kort) - Monte Carlo-simulering, pott-odds och strategiskt råd. Fristående verktyg utan konto eller datainsamling.",
   "start_url": "./index.html",
   "scope": "./",

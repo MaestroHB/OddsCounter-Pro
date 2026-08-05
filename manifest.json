@@ -1,0 +1,47 @@
+{
+  "id": "/",
+  "name": "Oddsräknare: Hold'em & Omaha",
+  "short_name": "Oddsräknare",
+  "description": "Räkna ut poker-odds och vinstchanser i realtid för Texas Hold'em och Omaha (4/5 kort) - Monte Carlo-simulering, pott-odds och strategiskt råd. Fristående verktyg utan konto eller datainsamling.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#f4f7f6",
+  "theme_color": "#1e293b",
+  "lang": "sv",
+  "dir": "ltr",
+  "categories": ["games", "utilities", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-16.png", "sizes": "16x16", "type": "image/png" },
+    { "src": "icons/icon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "icons/icon-48.png", "sizes": "48x48", "type": "image/png" },
+    { "src": "icons/icon-72.png", "sizes": "72x72", "type": "image/png" },
+    { "src": "icons/icon-96.png", "sizes": "96x96", "type": "image/png" },
+    { "src": "icons/icon-128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "icons/icon-144.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "icons/icon-152.png", "sizes": "152x152", "type": "image/png" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-256.png", "sizes": "256x256", "type": "image/png" },
+    { "src": "icons/icon-384.png", "sizes": "384x384", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Texas Hold'em",
+      "short_name": "Hold'em",
+      "url": "./index.html?mode=holdem",
+      "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Omaha (4 kort)",
+      "short_name": "PLO4",
+      "url": "./index.html?mode=plo4",
+      "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ]
+}

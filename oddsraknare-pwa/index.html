@@ -1,0 +1,3957 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oddsräknare: Hold'em &amp; Omaha</title>
+    <meta name="description" content="Räkna ut poker-odds och vinstchanser i realtid för Texas Hold'em och Omaha (4/5 kort) - Monte Carlo-simulering, pott-odds och strategiskt råd.">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e293b">
+    <link rel="icon" href="icons/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+
+    <!-- iOS/Safari -->
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Oddsräknare">
+
+    <!-- Windows -->
+    <meta name="msapplication-TileColor" content="#1e293b">
+    <meta name="msapplication-TileImage" content="icons/icon-144.png">
+    <meta name="msapplication-config" content="none">
+
+    <style>
+        body {
+            background-color: #f4f7f6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        .app-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px; /* Ytterligare minskat för att få plats utan scroll på 17-tums skärmar */
+            width: 100%;
+            max-width: 1600px; 
+            height: 94vh; 
+            justify-content: space-between;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr) 1.7fr;
+            gap: 10px;
+            flex: 0 0 auto; 
+        }
+
+        @media (max-width: 1300px) {
+            .input-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            #playersModule {
+                grid-column: 1 / -1;
+            }
+            .app-wrapper { height: auto; } 
+        }
+        @media (max-width: 800px) {
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+            .players-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .input-module {
+            background-color: #fff;
+            padding: 12px; 
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .players-input-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 2px;
+            margin-bottom: 4px;
+        }
+
+        .player-count-note {
+            font-size: 0.65rem;
+            color: #d97706;
+            text-align: center;
+            min-height: 11px;
+            margin-top: -4px;
+            margin-bottom: 6px;
+        }
+
+        .players-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: 100%;
+            align-items: start;
+        }
+
+        .players-col {
+            display: flex;
+            flex-direction: column;
+            min-width: 0; /* tillåt innehåll att krympa istället för att pressa ut kolumnen */
+        }
+
+        .equity-chart-box {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 2px 4px;
+        }
+
+        .equity-chart-empty {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            text-align: center;
+            padding: 20px 8px;
+        }
+
+        .players-input-container button {
+            width: 32px;
+            height: 32px;
+            font-size: 1.05rem;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .players-input {
+            width: 52px;
+            height: 30px;
+            font-size: 1.05rem;
+            text-align: center;
+            font-weight: bold;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+
+        h2 {
+            margin-top: 0;
+            text-align: center;
+            color: #333;
+            margin-bottom: 6px; 
+            font-size: 1.05rem; 
+        }
+
+        .section-title {
+            font-size: 0.75rem; 
+            text-transform: uppercase;
+            color: #777;
+            margin-bottom: 4px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+
+        .btn-grid-values {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+
+        button {
+            padding: 7px 2px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover:not(:disabled):not(.btn-suit) {
+            filter: brightness(0.85);
+            border-color: #bbb;
+        }
+
+        button:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+        }
+
+        button.selected {
+            background-color: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+
+        .btn-suit[data-suit="♠"], .btn-suit[data-suit="♣"] { color: #000; }
+        .btn-suit[data-suit="♥"], .btn-suit[data-suit="♦"] { color: #d9534f; }
+
+        .btn-suit.selected {
+            background-color: #333 !important;
+            color: #fff !important;
+            border-color: #000 !important;
+        }
+        .btn-suit[data-suit="♥"].selected, .btn-suit[data-suit="♦"].selected {
+            background-color: #d9534f !important;
+            border-color: #b52b27 !important;
+        }
+
+        .slots-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 5px; /* Minskad för att krympa övre modulen vertikalt */
+            margin-top: 4px;    /* Minskad för tätare layout */
+        }
+
+        .flop-slots { grid-template-columns: repeat(3, 1fr); }
+        .turn-slots, .river-slots { grid-template-columns: 1fr; }
+
+        .card-slot {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            height: 42px; /* Ytterligare minskad höjd för 17-tums skärmar */
+            background-color: #fafafa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.15rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .card-slot:hover {
+            border-color: #999;
+            background-color: #f0f0f0;
+        }
+
+        .card-slot.active {
+            border-color: #007bff;
+            background-color: #e7f1ff;
+            box-shadow: 0 0 8px rgba(0,123,255,0.25);
+        }
+
+        .card-slot.filled {
+            border-style: solid;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .red { color: #d9534f; }
+        .black { color: #000; }
+
+        .module-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 4px; /* Minskat utrymme mellan kortvalsresultat och knappar */
+        }
+
+        .btn-clear {
+            background-color: #d97706;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 7px 12px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s ease;
+            font-size: 0.85rem;
+        }
+        .btn-clear:hover { background-color: #b45309; }
+
+        .btn-clear-all {
+            background-color: #d9534f;
+            color: white;
+            border: none;
+            padding: 7px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 4px;
+            width: 100%;
+        }
+        .btn-clear-all:hover { background-color: #c9302c; }
+
+        .btn-random {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 7px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+        .btn-random:hover { background-color: #218838; }
+
+        /* --- Pott-odds-kalkylator --- */
+        .pot-odds-inputs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .pot-odds-label {
+            display: block;
+            font-size: 0.7rem;
+            color: #777;
+            margin-bottom: 3px;
+            font-weight: bold;
+        }
+
+        .pot-odds-input {
+            width: 100%;
+            height: 32px;
+            font-size: 0.95rem;
+            text-align: center;
+            font-weight: bold;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .pot-odds-result {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin-top: 5px;
+            text-align: center;
+        }
+
+        .pot-odds-stat {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 6px 3px;
+        }
+
+        .pot-odds-stat-label {
+            display: block;
+            font-size: 0.6rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            font-weight: bold;
+        }
+
+        .pot-odds-stat-value {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: #fff;
+            margin-top: 2px;
+        }
+
+        .pot-odds-verdict {
+            margin-top: 5px;
+            padding: 6px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.78rem;
+            font-weight: bold;
+            background-color: #f4f7f6;
+            color: #555;
+        }
+
+        .pot-odds-verdict.verdict-good {
+            background-color: #dcfce7;
+            color: #15803d;
+        }
+
+        .pot-odds-verdict.verdict-bad {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .pot-odds-explainer {
+            margin-top: 4px;
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            line-height: 1.35;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+
+        .pot-odds-explainer-line {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pot-odds-explainer-result {
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        .pot-odds-explainer strong {
+            color: #1e293b;
+        }
+
+        .odds-module {
+            background-color: #fff;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border-left: 5px solid #28a745;
+            width: 100%;
+            box-sizing: border-box;
+            flex: 1; 
+            overflow-y: auto; 
+        }
+
+        .odds-header-grid, .odds-row-grid {
+            display: grid;
+            grid-template-columns: 0.6fr 1.9fr 1.3fr 1.0fr 1.3fr 1.0fr 1.3fr 1.0fr 1.4fr 1.2fr;
+            gap: 6px;
+            margin-bottom: 6px; 
+            text-align: center;
+            align-items: center;
+        }
+
+        .odds-header-grid { margin-bottom: 5px; }
+        .odds-row-grid:last-child { margin-bottom: 0; }
+
+        .odds-box {
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            height: 26px; 
+            background-color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        .hand-label {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #1e293b;
+            text-align: left;
+            padding-left: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .calc-badge {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 0.72rem;
+            font-weight: bold;
+            text-transform: none;
+            letter-spacing: normal;
+            color: #b45309;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 12px;
+            padding: 2px 10px;
+            animation: calcPulse 1s ease-in-out infinite;
+            vertical-align: middle;
+        }
+        @keyframes calcPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.45; }
+        }
+
+        .odds-box.type-box {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #475569;
+            font-size: 0.8rem;
+            justify-content: flex-start;
+            padding: 4px 10px;
+            height: auto;
+            min-height: 26px;
+            white-space: normal;
+            line-height: 1.25;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        
+        .odds-box.flop-box.percent-box { background-color: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+        .odds-box.turn-box { background-color: #f0f9ff; border-color: #bae6fd; color: #0369a1; }
+        .odds-box.turn-box.percent-box { background-color: #f0fdfa; border-color: #99f6e4; color: #0f766e; }
+        .odds-box.river-box { background-color: #faf5ff; border-color: #e9d5ff; color: #6b21a8; }
+        .odds-box.river-box.percent-box { background-color: #fff1f2; border-color: #fecdd3; color: #9f1239; }
+        
+        .odds-box.player-box { background-color: #fffbeb; border-color: #fde68a; color: #b45309; font-size: 0.8rem; }
+        .odds-box.player-box.win-box { background-color: #fef3c7; border-color: #fcd34d; color: #92400e; font-size: 0.95rem; }
+
+        /* --- Hjälpknapp & modal --- */
+        .help-button {
+            position: fixed;
+            top: 66px;
+            right: 14px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            font-size: 1.05rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+            z-index: 1000;
+        }
+        .help-button:hover { background: #2563eb; }
+
+        .about-button {
+            top: 110px; /* under hjälpknappen (66 + 36 + 8) */
+            right: 14px;
+            background: #64748b;
+        }
+        .about-button:hover { background: #475569; }
+
+        .lang-toggle {
+            position: fixed;
+            top: 14px; /* överst */
+            right: 14px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .btn-lang {
+            border: none;
+            background: #fff;
+            color: #475569;
+            font-size: 0.72rem;
+            font-weight: bold;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .btn-lang:hover { background: #f1f5f9; }
+        .btn-lang.selected {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .about-title {
+            font-size: 1.15rem;
+            font-weight: bold;
+            color: #1e293b;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+        .about-meta {
+            font-size: 0.8rem;
+            color: #64748b;
+            text-align: center;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .help-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            z-index: 1001;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .help-modal-overlay.open { display: flex; }
+
+        .help-modal {
+            background: #fff;
+            border-radius: 12px;
+            max-width: 720px;
+            width: 100%;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+        }
+
+        .help-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            flex: 0 0 auto;
+        }
+
+        .help-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #64748b;
+            padding: 2px 8px;
+            border-radius: 6px;
+        }
+        .help-modal-close:hover { color: #1e293b; background: #f1f5f9; }
+
+        .help-modal-body {
+            padding: 14px 20px 20px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #334155;
+        }
+        .help-modal-body h3 {
+            margin-top: 16px;
+            margin-bottom: 5px;
+            color: #1e293b;
+            font-size: 0.95rem;
+        }
+        .help-modal-body h3:first-child { margin-top: 0; }
+        .help-modal-body p { margin: 4px 0; }
+        .help-modal-body ul { margin: 4px 0; padding-left: 20px; }
+        .help-modal-body code {
+            background: #f1f5f9;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .odds-explainer {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed #e2e8f0;
+        }
+
+        .odds-explainer-legend {
+            display: grid;
+            grid-template-columns: max-content 1fr max-content 1fr;
+            gap: 2px 8px;
+            margin-bottom: 5px;
+        }
+
+        .odds-explainer-tag {
+            display: inline-block;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            padding: 2px 7px;
+            font-size: 0.76rem;
+            font-weight: bold;
+            color: #475569;
+            white-space: nowrap;
+            align-self: start;
+        }
+
+        .odds-explainer-def {
+            font-size: 0.78rem;
+            color: #64748b;
+            line-height: 1.3;
+        }
+
+        .odds-explainer-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .odds-explainer-formula {
+            font-size: 0.8rem;
+            line-height: 1.3;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 4px 8px;
+        }
+
+        .odds-explainer-formula strong {
+            color: #1e293b;
+        }
+
+        .odds-explainer-formula-sim {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+
+        .advisor-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin-top: 4px; 
+            margin-bottom: 2px;
+        }
+        
+        .advisor-box {
+            border: 2px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 5px 2px; 
+            text-align: center;
+            font-size: 0.8rem; 
+            font-weight: bold;
+            color: #64748b;
+            background-color: #f8fafc;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+        }
+        
+        .advisor-box.active-fold {
+            background-color: #fef2f2;
+            border-color: #ef4444;
+            color: #b91c1c;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+        }
+        .advisor-box.active-call {
+            background-color: #fffbeb;
+            border-color: #f59e0b;
+            color: #b45309;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+        }
+        .advisor-box.active-raise {
+            background-color: #f0fdf4;
+            border-color: #22c55e;
+            color: #166434;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
+        }
+
+        .btn-pos {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 2px solid #cbd5e1;
+            padding: 6px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        .btn-pos:hover {
+            background-color: #e2e8f0;
+        }
+        .btn-pos.selected {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .btn-range {
+            font-size: 0.72rem;
+            padding: 6px 0;
+        }
+        .btn-pos:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .btn-pos:disabled:hover {
+            background-color: #f1f5f9;
+        }
+    </style>
+</head>
+<body>
+
+<button id="helpButton" class="help-button" onclick="openHelpModal()" data-i18n-title="help_button_title" title="Hjälp &amp; användarhandledning">?</button>
+<button id="aboutButton" class="help-button about-button" onclick="openAboutModal()" data-i18n-title="about_button_title" title="Om appen">i</button>
+<div class="lang-toggle" data-i18n-title="lang_button_title" title="Byt språk / Switch language">
+    <button class="btn-lang selected" data-lang="sv" onclick="setLanguage('sv')">SV</button>
+    <button class="btn-lang" data-lang="en" onclick="setLanguage('en')">EN</button>
+</div>
+
+<div id="helpModalOverlay" class="help-modal-overlay" onclick="if(event.target===this) closeHelpModal()">
+    <div class="help-modal">
+        <div class="help-modal-header">
+            <h2 style="margin:0; text-align:left;" data-i18n="help_modal_title">📖 Användarhandledning</h2>
+            <button class="help-modal-close" onclick="closeHelpModal()" title="Stäng">✕</button>
+        </div>
+        <div class="help-modal-body" data-i18n-html="help_modal_body">
+            <h3>Kort - Hålkort / Flop / Turn / River</h3>
+            <p>Klicka en modul aktiv (blå ram runt korthål), välj sedan en <strong>färg</strong> och en <strong>valör</strong> - kortet läggs in automatiskt så fort båda är valda, och fokus hoppar vidare till nästa kortplats.</p>
+            <p>Tangentbord: <code>S H C D</code> för färg (Spader/Hjärter/Klöver/Ruter), <code>2-9, T, J, Q, K, A</code> för valör (T = 10).</p>
+            <p><strong>Slumpa</strong> fyller modulens kort med slumpmässiga (icke redan använda) kort. <strong>Rensa [modul]</strong> tömmer bara den modulen.</p>
+
+            <h3>Antal Spelare, Position &amp; Motståndarnas range</h3>
+            <p>+/- eller skriv in antal spelare vid bordet. Under handen justeras siffran automatiskt nedåt (t.ex. "3 uppskattat kvar") eftersom appen antar att en del spelare statistiskt sett har lagt sig till flop/turn/river - det du själv ställt in ändras aldrig, och <strong>Rensa Allt</strong> återställer alltid till ditt tal.</p>
+            <p><strong>Position</strong> (BTN/CO/UTG) och <strong>Motståndarnas range</strong> (Alla/Loose/Normal/Tight) påverkar equity-simuleringen och det strategiska rådet - en tightare antagen range gör t.ex. svaga händer sämre, eftersom motståndarna då antas ha starkare kort i snitt.</p>
+
+            <h3>Total vinstchans, Strategiskt råd &amp; Equity per gata</h3>
+            <p><strong>Total vinstchans</strong> är resultatet av en Monte Carlo-simulering (tusentals slumpade utfall) - inte en enkel formel. <strong>Strategiskt råd</strong> (Fold/Check/Raise) jämför den mot en enkel tröskelmodell baserad på hur många spelare som är kvar och din position.</p>
+            <p><strong>Equity per gata</strong>-grafen visar hur vinstchansen förändrats Preflop → Flop → Turn → River, inklusive hur många spelare som antogs vara kvar vid varje steg (siffran inom parentes).</p>
+
+            <h3>Pott-odds-kalkylatorn</h3>
+            <p>Fyll i <strong>Pott</strong> (vad som redan ligger i potten) och <strong>Insats att syna</strong>. Rutan räknar ut vilken equity du behöver för att ett call ska löna sig matematiskt (<code>Insats ÷ (Pott + Insats) × 100</code>), visar uträkningen steg för steg, och jämför den mot din simulerade equity ovan. Återställs till 100/25 av <strong>Rensa Allt</strong>.</p>
+
+            <h3>Oddsmotorn (tabellen längst ner)</h3>
+            <p>Visar chansen att göra respektive handtyp (Par/Triss/Stege/Färg/Kåk) på flop/turn/river, samt den simulerade vinstchansen per handtyp längst till höger. En egen liten förklaringsruta under tabellen beskriver vad etiketterna ("X/47", "Komb.", "Färdigt", "Bord" osv.) betyder.</p>
+
+            <h3>Bra att veta</h3>
+            <ul>
+                <li>Alla sannolikheter bygger på slumpmässig simulering (Monte Carlo) förutom där en exakt kombinatorisk formel används - inget är gissat "för hand".</li>
+                <li>Du kan inte välja samma kort två gånger - appen blockerar dubbletter automatiskt.</li>
+                <li><strong>Rensa Allt</strong> nollställer hela handen: kort, pott-odds och (indirekt) equity-per-gata-grafen, men behåller ditt inställda antal spelare, position och valda motståndar-range.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div id="aboutModalOverlay" class="help-modal-overlay" onclick="if(event.target===this) closeAboutModal()">
+    <div class="help-modal about-modal">
+        <div class="help-modal-header">
+            <h2 style="margin:0; text-align:left;" data-i18n="about_modal_title">ℹ️ Om</h2>
+            <button class="help-modal-close" onclick="closeAboutModal()" title="Stäng">✕</button>
+        </div>
+        <div class="help-modal-body" data-i18n-html="about_modal_body">
+            <div class="about-title">Oddsräknare: Hold'em &amp; Omaha</div>
+            <div class="about-meta">Version 3.0.0 &nbsp;·&nbsp; MaestroHB</div>
+
+            <p>Ett fristående verktyg (ingen server, inget konto, ingen datainsamling) för att räkna ut poker-odds och vinstchanser i Texas Hold'em, i realtid medan hålkort och bordkort fylls i.</p>
+
+            <h3>Hur beräkningarna görs</h3>
+            <ul>
+                <li><strong>Vinstchans / equity</strong>: Monte Carlo-simulering - tusentals slumpade bord och motståndarhänder, justerat efter vald motståndar-range och statistiskt uppskattat antal kvarvarande spelare.</li>
+                <li><strong>Draw-odds per handtyp</strong> (Par/Triss/Stege/Färg/Kåk-tabellen): outs-baserad eller direkt kombinatorisk uträkning - se förklaringsrutan under tabellen eller Hjälp-knappen för detaljer.</li>
+                <li><strong>Pott-odds</strong>: enkel matematisk formel, <code>Insats ÷ (Pott + Insats) × 100</code>.</li>
+            </ul>
+
+            <h3>Viktigt att veta</h3>
+            <p>Alla siffror är statistiska uppskattningar avsedda som beslutsstöd och underlag för att öva - inte en garanti för utfall, och inte spelråd för pengar du inte har råd att förlora. Modellerna för motståndar-ranges och antal kvarvarande spelare är förenklade schabloner, inte hämtade från verklig handhistorik.</p>
+        </div>
+    </div>
+</div>
+
+<div class="app-wrapper">
+
+    <div class="input-row">
+        <!-- Hålkort -->
+        <div class="input-module" id="handModule">
+            <div>
+                <h2 data-i18n="hand_title">Dina Hålkort</h2>
+                <div class="section-title" data-i18n="game_mode_title">Spelvariant:</div>
+                <div class="btn-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 6px;">
+                    <button class="btn-pos btn-gamemode selected" data-mode="holdem" onclick="setGameMode('holdem')" data-i18n="game_mode_holdem">Hold'em</button>
+                    <button class="btn-pos btn-gamemode" data-mode="plo4" onclick="setGameMode('plo4')" data-i18n="game_mode_plo4">PLO (4 kort)</button>
+                    <button class="btn-pos btn-gamemode" data-mode="plo5" onclick="setGameMode('plo5')" data-i18n="game_mode_plo5">PLO (5 kort)</button>
+                </div>
+                <div class="section-title" data-i18n="choose_suit">Välj Färg:</div>
+                <div class="btn-grid">
+                    <button class="btn-suit" data-suit="♠" data-i18n-html="suit_spades_btn">♠ Spader (S)</button>
+                    <button class="btn-suit" data-suit="♥" data-i18n-html="suit_hearts_btn">♥ Hjärter (H)</button>
+                    <button class="btn-suit" data-suit="♣" data-i18n-html="suit_clubs_btn">♣ Klöver (C)</button>
+                    <button class="btn-suit" data-suit="♦" data-i18n-html="suit_diamonds_btn">♦ &nbsp;Ruter&nbsp; (D)</button>
+                </div>
+                <div class="section-title" data-i18n="choose_value">Välj Valör:</div>
+                <div class="btn-grid btn-grid-values">
+                    <button class="btn-value" data-value="2">2</button><button class="btn-value" data-value="3">3</button><button class="btn-value" data-value="4">4</button><button class="btn-value" data-value="5">5</button><button class="btn-value" data-value="6">6</button><button class="btn-value" data-value="7">7</button><button class="btn-value" data-value="8">8</button><button class="btn-value" data-value="9">9</button><button class="btn-value" data-value="10">10</button><button class="btn-value" data-value="J">J</button><button class="btn-value" data-value="Q">Q</button><button class="btn-value" data-value="K">K</button><button class="btn-value" data-value="A">A</button>
+                </div>
+                <div class="slots-container" style="flex-wrap: wrap;">
+                    <div id="slotWrapH0"><div class="section-title" style="text-align: center;" data-i18n="card_1">Kort 1</div><div class="card-slot active" id="slotH0" onclick="setActiveSlot('H', 0)">-</div></div>
+                    <div id="slotWrapH1"><div class="section-title" style="text-align: center;" data-i18n="card_2">Kort 2</div><div class="card-slot" id="slotH1" onclick="setActiveSlot('H', 1)">-</div></div>
+                    <div id="slotWrapH2" style="display:none;"><div class="section-title" style="text-align: center;" data-i18n="card_3">Kort 3</div><div class="card-slot" id="slotH2" onclick="setActiveSlot('H', 2)">-</div></div>
+                    <div id="slotWrapH3" style="display:none;"><div class="section-title" style="text-align: center;" data-i18n="card_4">Kort 4</div><div class="card-slot" id="slotH3" onclick="setActiveSlot('H', 3)">-</div></div>
+                    <div id="slotWrapH4" style="display:none;"><div class="section-title" style="text-align: center;" data-i18n="card_5">Kort 5</div><div class="card-slot" id="slotH4" onclick="setActiveSlot('H', 4)">-</div></div>
+                </div>
+            </div>
+            <div class="module-actions">
+                <button class="btn-random" onclick="randomizeModule('H')" data-i18n="random_hand">🎲 Slumpa Hålkort</button>
+                <button class="btn-clear" onclick="clearModule('H')" data-i18n="clear_hand">Rensa Hålkort</button>
+            </div>
+        </div>
+
+        <!-- Flop -->
+        <div class="input-module" id="flopModule">
+            <div>
+                <h2 data-i18n="flop_title">Floppen</h2>
+                <div class="section-title" data-i18n="choose_suit">Välj Färg:</div>
+                <div class="btn-grid">
+                    <button class="btn-suit" data-suit="♠" data-i18n-html="suit_spades_btn">♠ Spader (S)</button>
+                    <button class="btn-suit" data-suit="♥" data-i18n-html="suit_hearts_btn">♥ Hjärter (H)</button>
+                    <button class="btn-suit" data-suit="♣" data-i18n-html="suit_clubs_btn">♣ Klöver (C)</button>
+                    <button class="btn-suit" data-suit="♦" data-i18n-html="suit_diamonds_btn">♦ &nbsp;Ruter&nbsp; (D)</button>
+                </div>
+                <div class="section-title" data-i18n="choose_value">Välj Valör:</div>
+                <div class="btn-grid btn-grid-values">
+                    <button class="btn-value" data-value="2">2</button><button class="btn-value" data-value="3">3</button><button class="btn-value" data-value="4">4</button><button class="btn-value" data-value="5">5</button><button class="btn-value" data-value="6">6</button><button class="btn-value" data-value="7">7</button><button class="btn-value" data-value="8">8</button><button class="btn-value" data-value="9">9</button><button class="btn-value" data-value="10">10</button><button class="btn-value" data-value="J">J</button><button class="btn-value" data-value="Q">Q</button><button class="btn-value" data-value="K">K</button><button class="btn-value" data-value="A">A</button>
+                </div>
+                <div class="slots-container flop-slots">
+                    <div><div class="section-title" style="text-align: center;" data-i18n="flop_1">Flop 1</div><div class="card-slot" id="slotF0" onclick="setActiveSlot('F', 0)">-</div></div>
+                    <div><div class="section-title" style="text-align: center;" data-i18n="flop_2">Flop 2</div><div class="card-slot" id="slotF1" onclick="setActiveSlot('F', 1)">-</div></div>
+                    <div><div class="section-title" style="text-align: center;" data-i18n="flop_3">Flop 3</div><div class="card-slot" id="slotF2" onclick="setActiveSlot('F', 2)">-</div></div>
+                </div>
+            </div>
+            <div class="module-actions">
+                <button class="btn-random" onclick="randomizeModule('F')" data-i18n="random_flop">🎲 Slumpa Flopp</button>
+                <button class="btn-clear" onclick="clearModule('F')" data-i18n="clear_flop">Rensa Flop</button>
+            </div>
+        </div>
+
+        <!-- Turn -->
+        <div class="input-module" id="turnModule">
+            <div>
+                <h2 data-i18n="turn_title">Turn</h2>
+                <div class="section-title" data-i18n="choose_suit">Välj Färg:</div>
+                <div class="btn-grid">
+                    <button class="btn-suit" data-suit="♠" data-i18n-html="suit_spades_btn">♠ Spader (S)</button>
+                    <button class="btn-suit" data-suit="♥" data-i18n-html="suit_hearts_btn">♥ Hjärter (H)</button>
+                    <button class="btn-suit" data-suit="♣" data-i18n-html="suit_clubs_btn">♣ Klöver (C)</button>
+                    <button class="btn-suit" data-suit="♦" data-i18n-html="suit_diamonds_btn">♦ &nbsp;Ruter&nbsp; (D)</button>
+                </div>
+                <div class="section-title" data-i18n="choose_value">Välj Valör:</div>
+                <div class="btn-grid btn-grid-values">
+                    <button class="btn-value" data-value="2">2</button><button class="btn-value" data-value="3">3</button><button class="btn-value" data-value="4">4</button><button class="btn-value" data-value="5">5</button><button class="btn-value" data-value="6">6</button><button class="btn-value" data-value="7">7</button><button class="btn-value" data-value="8">8</button><button class="btn-value" data-value="9">9</button><button class="btn-value" data-value="10">10</button><button class="btn-value" data-value="J">J</button><button class="btn-value" data-value="Q">Q</button><button class="btn-value" data-value="K">K</button><button class="btn-value" data-value="A">A</button>
+                </div>
+                <div class="slots-container turn-slots">
+                    <div><div class="section-title" style="text-align: center;" data-i18n="turn_card">Turn-kort</div><div class="card-slot" id="slotT0" onclick="setActiveSlot('T', 0)">-</div></div>
+                </div>
+            </div>
+            <div class="module-actions">
+                <button class="btn-random" onclick="randomizeModule('T')" data-i18n="random_turn">🎲 Slumpa Turn</button>
+                <button class="btn-clear" onclick="clearModule('T')" data-i18n="clear_turn">Rensa Turn</button>
+            </div>
+        </div>
+
+        <!-- River -->
+        <div class="input-module" id="riverModule">
+            <div>
+                <h2 data-i18n="river_title">River</h2>
+                <div class="section-title" data-i18n="choose_suit">Välj Färg:</div>
+                <div class="btn-grid">
+                    <button class="btn-suit" data-suit="♠" data-i18n-html="suit_spades_btn">♠ Spader (S)</button>
+                    <button class="btn-suit" data-suit="♥" data-i18n-html="suit_hearts_btn">♥ Hjärter (H)</button>
+                    <button class="btn-suit" data-suit="♣" data-i18n-html="suit_clubs_btn">♣ Klöver (C)</button>
+                    <button class="btn-suit" data-suit="♦" data-i18n-html="suit_diamonds_btn">♦ &nbsp;Ruter&nbsp; (D)</button>
+                </div>
+                <div class="section-title" data-i18n="choose_value">Välj Valör:</div>
+                <div class="btn-grid btn-grid-values">
+                    <button class="btn-value" data-value="2">2</button><button class="btn-value" data-value="3">3</button><button class="btn-value" data-value="4">4</button><button class="btn-value" data-value="5">5</button><button class="btn-value" data-value="6">6</button><button class="btn-value" data-value="7">7</button><button class="btn-value" data-value="8">8</button><button class="btn-value" data-value="9">9</button><button class="btn-value" data-value="10">10</button><button class="btn-value" data-value="J">J</button><button class="btn-value" data-value="Q">Q</button><button class="btn-value" data-value="K">K</button><button class="btn-value" data-value="A">A</button>
+                </div>
+                <div class="slots-container river-slots">
+                    <div><div class="section-title" style="text-align: center;" data-i18n="river_card">River-kort</div><div class="card-slot" id="slotR0" onclick="setActiveSlot('R', 0)">-</div></div>
+                </div>
+            </div>
+            <div class="module-actions">
+                <button class="btn-random" onclick="randomizeModule('R')" data-i18n="random_river">🎲 Slumpa River</button>
+                <button class="btn-clear" onclick="clearModule('R')" data-i18n="clear_river">Rensa River</button>
+            </div>
+        </div>
+
+        <!-- Spelare & Info -->
+        <div class="input-module" id="playersModule" style="border-left: 4px solid #f59e0b;">
+            <h2 data-i18n-html="players_position_odds_title">Spelare, Position &amp; Odds</h2>
+
+            <div class="players-columns">
+                <!-- Vänster kolumn: spelarantal, position, "rensa allt" -->
+                <div class="players-col">
+                    <div class="players-input-container">
+                        <button onclick="adjustPlayers(-1)">-</button>
+                        <input type="number" id="playerCountInput" class="players-input" value="6" min="2" max="10" onchange="validateAndUdpatePlayers()">
+                        <button onclick="adjustPlayers(1)">+</button>
+                    </div>
+                    <div id="playerCountNote" class="player-count-note"></div>
+
+                    <div class="section-title" style="text-align: center; margin-top: 8px; margin-bottom: 5px;" data-i18n="position_title">Position (GTO)</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 6px;">
+                        <button class="btn-pos selected" data-pos="BTN" onclick="setPlayerPosition('BTN')">BTN</button>
+                        <button class="btn-pos" data-pos="CO" onclick="setPlayerPosition('CO')">CO</button>
+                        <button class="btn-pos" data-pos="UTG" onclick="setPlayerPosition('UTG')">UTG</button>
+                    </div>
+
+                    <div class="section-title" style="text-align: center; margin-bottom: 5px;" data-i18n="opponent_range_title">Motståndarnas range</div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 6px;">
+                        <button class="btn-pos btn-range selected" data-range="random" onclick="setOpponentRange('random')" data-i18n-title="range_all_tip" data-i18n="range_all" title="Helt slumpmässiga händer">Alla</button>
+                        <button class="btn-pos btn-range" data-range="loose" onclick="setOpponentRange('loose')" data-i18n-title="range_loose_tip" data-i18n="range_loose" title="~55% av alla starthänder">Loose</button>
+                        <button class="btn-pos btn-range" data-range="normal" onclick="setOpponentRange('normal')" data-i18n-title="range_normal_tip" data-i18n="range_normal" title="~35% av alla starthänder">Normal</button>
+                        <button class="btn-pos btn-range" data-range="tight" onclick="setOpponentRange('tight')" data-i18n-title="range_tight_tip" data-i18n="range_tight" title="~15% av alla starthänder">Tight</button>
+                    </div>
+                    <div id="rangeInfoNote" class="player-count-note" style="display:none;" data-i18n="range_info_plo_note">I PLO används en egen poängheuristik (par/suited/connectivity/ess) istället för Chen-formeln - se Hjälp för detaljer.</div>
+
+                    <div style="background: #1e293b; border: 2px solid #3b82f6; border-radius: 8px; padding: 6px; margin-top: 4px; text-align: center;">
+                        <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; font-weight: bold;" data-i18n="total_win_chance">Total vinstchans</div>
+                        <div id="totalWinChance" style="font-size: 1.4rem; font-weight: bold; color: #3b82f6; margin: 2px 0;">-</div>
+                        <div style="font-size: 0.7rem; color: #64748b;" data-i18n="total_win_chance_sub">Simulerat mot antal spelare</div>
+                    </div>
+
+                    <div class="section-title" style="text-align: center; margin-top: 10px; margin-bottom: 2px;" data-i18n="strategic_advice_title">Strategiskt råd</div>
+                    <div class="advisor-container">
+                        <div class="advisor-box" id="advFold" data-i18n="adv_fold">Fold</div>
+                        <div class="advisor-box" id="advCall" data-i18n="adv_call">Check/Syn</div>
+                        <div class="advisor-box" id="advRaise" data-i18n="adv_raise">Raise</div>
+                    </div>
+                </div>
+
+                <!-- Höger kolumn: pott-odds-kalkylator + rensa allt -->
+                <div class="players-col">
+                    <div class="section-title" style="text-align: center; margin-bottom: 2px;" data-i18n="pot_odds_title">Pott-odds-kalkylator</div>
+                    <div class="pot-odds-inputs">
+                        <div>
+                            <label class="pot-odds-label" for="potSizeInput" data-i18n="pot_odds_pot_label">Pott</label>
+                            <input type="number" id="potSizeInput" class="pot-odds-input" min="0" step="1" value="100" oninput="updatePotOddsUI()">
+                        </div>
+                        <div>
+                            <label class="pot-odds-label" for="betToCallInput" data-i18n="pot_odds_bet_label">Insats att syna</label>
+                            <input type="number" id="betToCallInput" class="pot-odds-input" min="0" step="1" value="25" oninput="updatePotOddsUI()">
+                        </div>
+                    </div>
+                    <div class="pot-odds-result">
+                        <div class="pot-odds-stat">
+                            <span class="pot-odds-stat-label" data-i18n="pot_odds_ratio_label">Odds</span>
+                            <span class="pot-odds-stat-value" id="potOddsRatio">-</span>
+                        </div>
+                        <div class="pot-odds-stat">
+                            <span class="pot-odds-stat-label" data-i18n="pot_odds_needed_label">Krävs</span>
+                            <span class="pot-odds-stat-value" id="potOddsEquityNeeded">-</span>
+                        </div>
+                        <div class="pot-odds-stat">
+                            <span class="pot-odds-stat-label" data-i18n="pot_odds_yours_label">Din</span>
+                            <span class="pot-odds-stat-value" id="potOddsYourEquity">-</span>
+                        </div>
+                    </div>
+                    <div class="pot-odds-verdict" id="potOddsVerdict" data-i18n="pot_odds_verdict_default">Fyll i pott och insats för att jämföra med din equity</div>
+                    <div class="pot-odds-explainer" id="potOddsExplainer" data-i18n="pot_odds_explainer_default">Fyll i pott och insats ovan för att se den matematiska uträkningen här.</div>
+                </div>
+            </div>
+
+            <div class="section-title" style="text-align: center; margin-top: 4px; margin-bottom: 2px;" data-i18n="equity_by_street_title">Equity per gata (Preflop → Flop → Turn → River)</div>
+            <div class="equity-chart-box" id="equityChartContainer"></div>
+
+            <button class="btn-clear-all" onclick="clearAllCards()" data-i18n="clear_all">⚠️ Rensa Allt</button>
+        </div>
+    </div>
+
+    <!-- Oddsmotor -->
+    <div class="odds-module">
+        <div class="section-title" style="color: #28a745; margin-bottom: 8px; font-size: 0.9rem;">
+            <span data-i18n-html="odds_engine_title">Oddsmotor / Sannolikhetsanalys per gata &amp; motståndare</span>
+            <span id="oddsEngineCalcBadge" class="calc-badge" style="display:none;" data-i18n="calc_badge_text">⏳ Beräknar...</span>
+        </div>
+        
+        <div class="odds-header-grid">
+            <div class="section-title" style="text-align: left; padding-left: 5px;" data-i18n="col_hand">Hand</div>
+            <div class="section-title" style="text-align: left; padding-left: 10px;" data-i18n="col_comment">Kommentar</div>
+            <div class="section-title" data-i18n="col_flop_formula">Flop Formel</div>
+            <div class="section-title" data-i18n="col_flop_pct">Flop %</div>
+            <div class="section-title" data-i18n="col_turn_formula">Turn Formel</div>
+            <div class="section-title" data-i18n="col_turn_pct">Turn %</div>
+            <div class="section-title" data-i18n="col_river_formula">River Formel</div>
+            <div class="section-title" data-i18n="col_river_pct">River %</div>
+            <div class="section-title" style="color: #b45309;" data-i18n="col_multiplayer_formula">Multi-Player Formel</div>
+            <div class="section-title" style="color: #b45309;" data-i18n="col_win_chance">Vinstchans</div>
+        </div>
+
+        <!-- 1. PAR -->
+        <div class="odds-row-grid">
+            <div class="hand-label" data-i18n="row_pair">PAR</div>
+            <div class="odds-box type-box" id="pairType">-</div>
+            <div class="odds-box flop-box" id="pairFracFlop">-</div>
+            <div class="odds-box flop-box percent-box" id="pairPercFlop">-</div>
+            <div class="odds-box turn-box" id="pairFracTurn">-</div>
+            <div class="odds-box turn-box percent-box" id="pairPercTurn">-</div>
+            <div class="odds-box river-box" id="pairFracRiver">-</div>
+            <div class="odds-box river-box percent-box" id="pairPercRiver">-</div>
+            <div class="odds-box player-box" id="pairPlayerFormula">-</div>
+            <div class="odds-box player-box win-box" id="pairPlayerWin">-</div>
+        </div>
+
+        <!-- 2. TRISS -->
+        <div class="odds-row-grid">
+            <div class="hand-label" data-i18n="row_trips">TRISS</div>
+            <div class="odds-box type-box" id="setType">-</div>
+            <div class="odds-box flop-box" id="setFracFlop">-</div>
+            <div class="odds-box flop-box percent-box" id="setPercFlop">-</div>
+            <div class="odds-box turn-box" id="setFracTurn">-</div>
+            <div class="odds-box turn-box percent-box" id="setPercTurn">-</div>
+            <div class="odds-box river-box" id="setFracRiver">-</div>
+            <div class="odds-box river-box percent-box" id="setPercRiver">-</div>
+            <div class="odds-box player-box" id="setPlayerFormula">-</div>
+            <div class="odds-box player-box win-box" id="setPlayerWin">-</div>
+        </div>
+
+        <!-- 3. STEGE -->
+        <div class="odds-row-grid">
+            <div class="hand-label" data-i18n="row_straight">STEGE</div>
+            <div class="odds-box type-box" id="oddsTypeStraight">-</div>
+            <div class="odds-box flop-box" id="straightFracFlop">-</div>
+            <div class="odds-box flop-box percent-box" id="straightPercFlop">-</div>
+            <div class="odds-box turn-box" id="straightFracTurn">-</div>
+            <div class="odds-box turn-box percent-box" id="straightPercTurn">-</div>
+            <div class="odds-box river-box" id="straightFracRiver">-</div>
+            <div class="odds-box river-box percent-box" id="straightPercRiver">-</div>
+            <div class="odds-box player-box" id="straightPlayerFormula">-</div>
+            <div class="odds-box player-box win-box" id="straightPlayerWin">-</div>
+        </div>
+
+        <!-- 4. FÄRG -->
+        <div class="odds-row-grid">
+            <div class="hand-label" data-i18n="row_flush">FÄRG</div>
+            <div class="odds-box type-box" id="oddsTypeFlush">-</div>
+            <div class="odds-box flop-box" id="flushFracFlop">-</div>
+            <div class="odds-box flop-box percent-box" id="flushPercFlop">-</div>
+            <div class="odds-box turn-box" id="flushFracTurn">-</div>
+            <div class="odds-box turn-box percent-box" id="flushPercTurn">-</div>
+            <div class="odds-box river-box" id="flushFracRiver">-</div>
+            <div class="odds-box river-box percent-box" id="flushPercRiver">-</div>
+            <div class="odds-box player-box" id="flushPlayerFormula">-</div>
+            <div class="odds-box player-box win-box" id="flushPlayerWin">-</div>
+        </div>
+
+        <!-- 5. KÅK -->
+        <div class="odds-row-grid">
+            <div class="hand-label" data-i18n="row_fh">KÅK</div>
+            <div class="odds-box type-box" id="oddsTypeFullHouse">-</div>
+            <div class="odds-box flop-box" id="fhFracFlop">-</div>
+            <div class="odds-box flop-box percent-box" id="fhPercFlop">-</div>
+            <div class="odds-box turn-box" id="fhFracTurn">-</div>
+            <div class="odds-box turn-box percent-box" id="fhPercTurn">-</div>
+            <div class="odds-box river-box" id="fhFracRiver">-</div>
+            <div class="odds-box river-box percent-box" id="fhPercRiver">-</div>
+            <div class="odds-box player-box" id="fhPlayerFormula">-</div>
+            <div class="odds-box player-box win-box" id="fhPlayerWin">-</div>
+        </div>
+
+        <div class="odds-explainer">
+            <div class="odds-explainer-legend">
+                <span class="odds-explainer-tag" data-i18n="explainer_tag_outs">X / 47 · X / 46</span><span class="odds-explainer-def" data-i18n="explainer_def_outs">Outs ÷ okända kort. 47 kort okända efter floppen (52 − 2 hålkort − 3 bordkort), 46 efter turn.</span>
+                <span class="odds-explainer-tag" data-i18n="explainer_tag_comb">Komb.</span><span class="odds-explainer-def" data-i18n="explainer_def_comb">Sannolikheten är räknad direkt med kombinatorik (t.ex. fickpar→triss på flop ≈11,8%), inte en enkel outs-kvot.</span>
+                <span class="odds-explainer-tag" data-i18n="explainer_tag_done_missed">Färdigt / Missat</span><span class="odds-explainer-def" data-i18n="explainer_def_done_missed">Handen är redan klar (100%) respektive draget missade helt (0%) vid den gatan.</span>
+                <span class="odds-explainer-tag" data-i18n="explainer_tag_board_none">Bord / Inget</span><span class="odds-explainer-def" data-i18n="explainer_def_board_none">"Bord" = handen kommer från gemensamma korten. "Inget" = inget levande drag kvar för handtypen.</span>
+            </div>
+            <div class="odds-explainer-row">
+                <div class="odds-explainer-formula" data-i18n-html="explainer_formula_combined">
+                    <strong>Flop/Turn/River %:</strong> Outs ÷ Okända kort × 100. Ex: 6 outs av 47 okända → 6÷47×100 ≈ 12,77%.
+                </div>
+                <div class="odds-explainer-formula odds-explainer-formula-sim" data-i18n-html="explainer_sim_combined">
+                    <strong>Multi-Player Formel &amp; Vinstchans:</strong> Ingen outs-kvot – en Monte Carlo-simulering delar ut tusentals slumpade bord/motståndarhänder (justerat efter vald range och uppskattat antal kvar) och räknar hur ofta handen faktiskt vinner.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+/* ===================================================================
+   i18n.js
+   Enkelt två-språkigt (sv/en) översättningssystem.
+
+   - Statisk text i HTML:en märks med data-i18n="nyckel" (textContent),
+     data-i18n-html="nyckel" (innerHTML, för längre block som hjälp-
+     och om-texterna) eller data-i18n-placeholder="nyckel".
+   - Dynamisk text som genereras i JS (ui.js, potOdds.js, equityChart.js)
+     anropar t('nyckel') eller t('nyckel', {namn: värde}) för enkel
+     platshållar-ersättning (ersätter "{namn}" i strängen).
+
+   Detta är en "rot"-fil (inga egna beroenden till andra egna filer),
+   men ui.js och potOdds.js behöver köra om sina egna uppdateringar när
+   språket byts. Istället för att direkt anropa updateOddsEngine()/
+   updatePotOddsUI() härifrån (vilket hade krävt att den här filen vet
+   om funktioner som definieras i senare filer), exponerar den en liten
+   lyssnar-registrering (onLanguageChange) som de andra filerna själva
+   prenumererar på - ett vanligt observer-mönster för löskoppling.
+   =================================================================== */
+
+let currentLanguage = 'sv';
+try {
+    const saved = localStorage.getItem('oddsraknare_lang');
+    if (saved === 'sv' || saved === 'en') currentLanguage = saved;
+} catch (e) { /* localStorage kan vara blockerat (t.ex. vissa file://-lägen) - kör bara vidare med svenska */ }
+
+// Färgnamn per språk - engelskans initialer (S/H/C/D) råkar redan matcha
+// tangentbordsgenvägarna i ui.js, så inga genvägar behöver ändras.
+const SUIT_NAMES = {
+    sv: { '♠': 'Spader', '♥': 'Hjärter', '♣': 'Klöver', '♦': 'Ruter' },
+    en: { '♠': 'Spades', '♥': 'Hearts', '♣': 'Clubs', '♦': 'Diamonds' }
+};
+
+const translations = {
+    sv: {
+        // Korthanterings-moduler
+        hand_title: 'Dina Hålkort',
+        flop_title: 'Floppen',
+        turn_title: 'Turn',
+        river_title: 'River',
+        choose_suit: 'Välj Färg:',
+        choose_value: 'Välj Valör:',
+        suit_spades_btn: '♠ Spader (S)',
+        suit_hearts_btn: '♥ Hjärter (H)',
+        suit_clubs_btn: '♣ Klöver (C)',
+        suit_diamonds_btn: '♦ &nbsp;Ruter&nbsp; (D)',
+        game_mode_title: 'Spelvariant:',
+        calc_badge_text: '⏳ Beräknar...',
+        game_mode_holdem: "Hold'em",
+        game_mode_plo4: 'PLO (4 kort)',
+        game_mode_plo5: 'PLO (5 kort)',
+        card_1: 'Kort 1',
+        card_2: 'Kort 2',
+        card_3: 'Kort 3',
+        card_4: 'Kort 4',
+        card_5: 'Kort 5',
+        flop_1: 'Flop 1',
+        flop_2: 'Flop 2',
+        flop_3: 'Flop 3',
+        turn_card: 'Turn-kort',
+        river_card: 'River-kort',
+        random_hand: '🎲 Slumpa Hålkort',
+        random_flop: '🎲 Slumpa Flopp',
+        random_turn: '🎲 Slumpa Turn',
+        random_river: '🎲 Slumpa River',
+        clear_hand: 'Rensa Hålkort',
+        clear_flop: 'Rensa Flop',
+        clear_turn: 'Rensa Turn',
+        clear_river: 'Rensa River',
+        clear_all: '⚠️ Rensa Allt',
+
+        // Spelare / Position / Odds-modulen
+        players_position_odds_title: 'Spelare, Position &amp; Odds',
+        position_title: 'Position (GTO)',
+        opponent_range_title: 'Motståndarnas range',
+        range_all: 'Alla',
+        range_loose: 'Loose',
+        range_normal: 'Normal',
+        range_tight: 'Tight',
+        range_all_tip: 'Helt slumpmässiga händer',
+        range_loose_tip: '~55% av alla starthänder',
+        range_normal_tip: '~35% av alla starthänder',
+        range_tight_tip: '~15% av alla starthänder',
+        range_info_plo_note: 'I PLO används en egen poängheuristik (par/suited/connectivity/ess) istället för Chen-formeln - se Hjälp för detaljer.',
+        total_win_chance: 'Total vinstchans',
+        total_win_chance_sub: 'Simulerat mot antal spelare',
+        strategic_advice_title: 'Strategiskt råd',
+        adv_fold: 'Fold',
+        adv_call: 'Check/Syn',
+        adv_raise: 'Raise',
+        equity_by_street_title: 'Equity per gata (Preflop → Flop → Turn → River)',
+        equity_chart_empty: 'Välj dina hålkort för att se equity-utvecklingen',
+
+        // Pott-odds-kalkylatorn
+        pot_odds_title: 'Pott-odds-kalkylator',
+        pot_odds_pot_label: 'Pott',
+        pot_odds_bet_label: 'Insats att syna',
+        pot_odds_ratio_label: 'Odds',
+        pot_odds_needed_label: 'Krävs',
+        pot_odds_yours_label: 'Din',
+        pot_odds_verdict_default: 'Fyll i pott och insats för att jämföra med din equity',
+        pot_odds_verdict_fill: 'Fyll i pott-storlek och insats att syna.',
+        pot_odds_explainer_default: 'Fyll i pott och insats ovan för att se den matematiska uträkningen här.',
+        pot_odds_verdict_good: '✅ Call lönar sig rent matematiskt (marginal: +{margin} procentenheter)',
+        pot_odds_verdict_bad: '❌ Call är olönsamt utan implied odds (marginal: {margin} procentenheter)',
+        pot_odds_explainer_result: 'equity som krävs',
+
+        // Oddsmotor-tabellen
+        odds_engine_title: 'Oddsmotor / Sannolikhetsanalys per gata &amp; motståndare',
+        col_hand: 'Hand',
+        col_comment: 'Kommentar',
+        col_flop_formula: 'Flop Formel',
+        col_flop_pct: 'Flop %',
+        col_turn_formula: 'Turn Formel',
+        col_turn_pct: 'Turn %',
+        col_river_formula: 'River Formel',
+        col_river_pct: 'River %',
+        col_multiplayer_formula: 'Multi-Player Formel',
+        col_win_chance: 'Vinstchans',
+        row_pair: 'PAR',
+        row_trips: 'TRISS',
+        row_straight: 'STEGE',
+        row_flush: 'FÄRG',
+        row_fh: 'KÅK',
+
+        // Statusord i tabellcellerna (återanvänds på flera rader)
+        status_done: 'Färdigt',
+        status_missed: 'Missat',
+        status_board: 'Bord',
+        status_none: 'Inget',
+        status_comb: 'Komb.',
+        status_combinatorics: 'Kombinatorik',
+        status_simulated: 'Simulerad',
+        omaha_formula_na: 'Sim.',
+        omaha_formula_na_type: 'Se Vinstchans \u2192',
+
+        // Kommentar-kolumnens dynamiska текст (par/triss/stege/färg/kåk)
+        c_pocket_pair_in: 'Pocketpar i {card}',
+        c_pair_in: 'Par i {card}',
+        c_hit_top: 'Träffa max {card}',
+        c_trips_in_pocket: 'Triss i {card} (Pocket)',
+        c_trips_in: 'Triss i {card}',
+        c_pocket_pair_runner: 'Pocketpar (Runner)',
+        c_preflop_draw: 'Pre-flop drag',
+        c_straight_to: 'Stege t. {card}',
+        c_open_ended: 'Öppet stegdrag',
+        c_gutshot: 'Hålpipa / Gutshot',
+        c_no_straight_draw: 'Inget stegdrag',
+        c_flush_in: 'Färg i {suit}',
+        c_flush_draw_in: 'Färgdrag i {suit}',
+        c_no_flush_draw: 'Inget färgdrag',
+        c_full_house_high: 'Kåk (Högst {card})',
+        c_full_house_draw_high: 'Kåkdrag (Högst {card})',
+        word_ace: 'Ess',
+
+        // Spelarantal / gatu-uppskattning
+        player_count_note: 'Startade med {baseline} · {n} uppskattat kvar ({street})',
+        street_preflop: 'Preflop',
+        street_flop: 'Flop',
+        street_turn: 'Turn',
+        street_river: 'River',
+
+        // Förklaringspanelen under oddsmotorn
+        explainer_tag_outs: 'X / 47 · X / 46',
+        explainer_def_outs: 'Outs ÷ okända kort. 47 kort okända efter floppen (52 − 2 hålkort − 3 bordkort), 46 efter turn.',
+        explainer_tag_comb: 'Komb.',
+        explainer_def_comb: 'Sannolikheten är räknad direkt med kombinatorik (t.ex. fickpar→triss på flop ≈11,8%), inte en enkel outs-kvot.',
+        explainer_tag_done_missed: 'Färdigt / Missat',
+        explainer_def_done_missed: 'Handen är redan klar (100%) respektive draget missade helt (0%) vid den gatan.',
+        explainer_tag_board_none: 'Bord / Inget',
+        explainer_def_board_none: '"Bord" = handen kommer från gemensamma korten. "Inget" = inget levande drag kvar för handtypen.',
+        explainer_formula_title: 'Flop/Turn/River %:',
+        explainer_formula_text: 'Outs ÷ Okända kort × 100. Ex: 6 outs av 47 okända → 6÷47×100 ≈ 12,77%.',
+        explainer_formula_combined: '<strong>Flop/Turn/River %:</strong> Outs ÷ Okända kort × 100. Ex: 6 outs av 47 okända → 6÷47×100 ≈ 12,77%.',
+        explainer_sim_title: 'Multi-Player Formel &amp; Vinstchans:',
+        explainer_sim_text: 'Ingen outs-kvot – en Monte Carlo-simulering delar ut tusentals slumpade bord/motståndarhänder (justerat efter vald range och uppskattat antal kvar) och räknar hur ofta handen faktiskt vinner.',
+        explainer_sim_combined: '<strong>Multi-Player Formel &amp; Vinstchans:</strong> Ingen outs-kvot – en Monte Carlo-simulering delar ut tusentals slumpade bord/motståndarhänder (justerat efter vald range och uppskattat antal kvar) och räknar hur ofta handen faktiskt vinner.',
+
+        // Hjälp/Om-knappar
+        help_button_title: 'Hjälp &amp; användarhandledning',
+        about_button_title: 'Om appen',
+        lang_button_title: 'Byt språk / Switch language',
+        about_modal_title: 'ℹ️ Om',
+
+        // Hjälp-modal (helblock, se applyStaticTranslations)
+        help_modal_title: '📖 Användarhandledning',
+        help_modal_body: `
+            <h3>Kort - Hålkort / Flop / Turn / River</h3>
+            <p>Klicka en modul aktiv (blå ram runt korthål), välj sedan en <strong>färg</strong> och en <strong>valör</strong> - kortet läggs in automatiskt så fort båda är valda, och fokus hoppar vidare till nästa kortplats.</p>
+            <p>Tangentbord: <code>S H C D</code> för färg (Spader/Hjärter/Klöver/Ruter), <code>2-9, T, J, Q, K, A</code> för valör (T = 10).</p>
+            <p><strong>Slumpa</strong> fyller modulens kort med slumpmässiga (icke redan använda) kort. <strong>Rensa [modul]</strong> tömmer bara den modulen.</p>
+
+            <h3>Spelvariant: Hold'em / PLO (4 kort) / PLO (5 kort)</h3>
+            <p>Växla spelvariant längst upp i hålkorts-modulen. I PLO visas 4 eller 5 hålkorts-platser istället för 2, och byte av läge rensar alltid handen (kortantalet skiljer sig mellan lägena). Kom ihåg Omahas grundregel: du MÅSTE använda exakt 2 av dina hålkort tillsammans med exakt 3 bordkort - till skillnad från Hold'em där 0, 1 eller 2 hålkort får användas fritt.</p>
+
+            <h3>Antal Spelare, Position &amp; Motståndarnas range</h3>
+            <p>+/- eller skriv in antal spelare vid bordet. Under handen justeras siffran automatiskt nedåt (t.ex. "3 uppskattat kvar") eftersom appen antar att en del spelare statistiskt sett har lagt sig till flop/turn/river - det du själv ställt in ändras aldrig, och <strong>Rensa Allt</strong> återställer alltid till ditt tal.</p>
+            <p><strong>Position</strong> (BTN/CO/UTG) och <strong>Motståndarnas range</strong> (Alla/Loose/Normal/Tight) påverkar equity-simuleringen och det strategiska rådet - en tightare antagen range gör t.ex. svaga händer sämre, eftersom motståndarna då antas ha starkare kort i snitt.</p>
+
+            <h3>Total vinstchans, Strategiskt råd &amp; Equity per gata</h3>
+            <p><strong>Total vinstchans</strong> är resultatet av en Monte Carlo-simulering (tusentals slumpade utfall) - inte en enkel formel. <strong>Strategiskt råd</strong> (Fold/Check/Raise) jämför den mot en enkel tröskelmodell baserad på hur många spelare som är kvar och din position.</p>
+            <p><strong>Equity per gata</strong>-grafen visar hur vinstchansen förändrats Preflop → Flop → Turn → River, inklusive hur många spelare som antogs vara kvar vid varje steg (siffran inom parentes).</p>
+
+            <h3>Pott-odds-kalkylatorn</h3>
+            <p>Fyll i <strong>Pott</strong> (vad som redan ligger i potten) och <strong>Insats att syna</strong>. Rutan räknar ut vilken equity du behöver för att ett call ska löna sig matematiskt (<code>Insats ÷ (Pott + Insats) × 100</code>), visar uträkningen steg för steg, och jämför den mot din simulerade equity ovan. Återställs till 100/25 av <strong>Rensa Allt</strong>.</p>
+
+            <h3>Oddsmotorn (tabellen längst ner)</h3>
+            <p>Visar chansen att göra respektive handtyp (Par/Triss/Stege/Färg/Kåk) på flop/turn/river, samt den simulerade vinstchansen per handtyp längst till höger. En egen liten förklaringsruta under tabellen beskriver vad etiketterna ("X/47", "Komb.", "Färdigt", "Bord" osv.) betyder. <strong>I PLO-läge</strong> visas "Sim." i formel-kolumnerna istället, eftersom de exakta Hold'em-formlerna inte gäller när man har fler än 2 hålkort att välja mellan - vinstchans-kolumnerna till höger är dock korrekta för PLO också.</p>
+
+            <h3>Bra att veta</h3>
+            <ul>
+                <li>Alla sannolikheter bygger på slumpmässig simulering (Monte Carlo) förutom där en exakt kombinatorisk formel används - inget är gissat "för hand".</li>
+                <li>Du kan inte välja samma kort två gånger - appen blockerar dubbletter automatiskt.</li>
+                <li><strong>Rensa Allt</strong> nollställer hela handen: kort, pott-odds och (indirekt) equity-per-gata-grafen, men behåller ditt inställda antal spelare, position och valda motståndar-range.</li>
+            </ul>
+        `,
+
+        // Om-modal
+        about_modal_body: `
+            <div class="about-title">Oddsräknare: Hold'em &amp; Omaha</div>
+            <div class="about-meta">Version 3.0.0 &nbsp;·&nbsp; MaestroHB</div>
+
+            <p>Ett fristående verktyg (ingen server, inget konto, ingen datainsamling) för att räkna ut poker-odds och vinstchanser i Texas Hold'em och Pot Limit Omaha (4- och 5-korts PLO), i realtid medan hålkort och bordkort fylls i.</p>
+
+            <h3>Hur beräkningarna görs</h3>
+            <ul>
+                <li><strong>Vinstchans / equity</strong>: Monte Carlo-simulering - tusentals slumpade bord och motståndarhänder, justerat efter vald motståndar-range (endast Hold'em) och statistiskt uppskattat antal kvarvarande spelare. Fungerar för både Hold'em och PLO.</li>
+                <li><strong>Draw-odds per handtyp</strong> (Par/Triss/Stege/Färg/Kåk-tabellen): outs-baserad eller direkt kombinatorisk uträkning, men detta gäller ENDAST Hold'em - se "PLO-läge" nedan.</li>
+                <li><strong>Pott-odds</strong>: enkel matematisk formel, <code>Insats ÷ (Pott + Insats) × 100</code>.</li>
+            </ul>
+
+            <h3>PLO-läge - vad som skiljer sig</h3>
+            <p>I Omaha måste man använda exakt 2 av sina 4 (eller 5) hålkort tillsammans med exakt 3 bordkort ("4-2-regeln"), till skillnad från Hold'em där man fritt får använda 0, 1 eller 2 hålkort. Vinstchans-kolumnerna räknar rätt för detta i båda spelen. Men de exakta "outs-formlerna" (t.ex. "6/47") i tabellen är hårdkodade för Hold'ems fasta 2 hålkort och blir matematiskt fel i Omaha eftersom vilka 2 av dina kort som faktiskt används varierar per utdelning - i PLO-läge visas därför "Sim." i de kolumnerna istället för en felaktig siffra. Motståndarnas antagna range (Loose/Normal/Tight) bygger i Hold'em på Chen-formelns 169 starthandstyper, vilket saknar direkt motsvarighet i Omaha - PLO-lägena använder därför en egen poängheuristik (par, dubbelsuited, connectivity, ess-bonus) för att uppskatta starthandsstyrka istället. Båda modellerna är pedagogiska approximationer, inte equity-solvade ranges.</p>
+
+            <h3>Viktigt att veta</h3>
+            <p>Alla siffror är statistiska uppskattningar avsedda som beslutsstöd och underlag för att öva - inte en garanti för utfall, och inte spelråd för pengar du inte har råd att förlora. Modellerna för motståndar-ranges och antal kvarvarande spelare är förenklade schabloner, inte hämtade från verklig handhistorik.</p>
+        `
+    },
+
+    en: {
+        hand_title: 'Your Hole Cards',
+        flop_title: 'The Flop',
+        turn_title: 'Turn',
+        river_title: 'River',
+        choose_suit: 'Choose Suit:',
+        choose_value: 'Choose Value:',
+        suit_spades_btn: '♠ Spades (S)',
+        suit_hearts_btn: '♥ Hearts (H)',
+        suit_clubs_btn: '♣ Clubs (C)',
+        suit_diamonds_btn: '♦ &nbsp;Diamonds&nbsp; (D)',
+        game_mode_title: 'Game Variant:',
+        calc_badge_text: '⏳ Calculating...',
+        game_mode_holdem: "Hold'em",
+        game_mode_plo4: 'PLO (4 cards)',
+        game_mode_plo5: 'PLO (5 cards)',
+        card_1: 'Card 1',
+        card_2: 'Card 2',
+        card_3: 'Card 3',
+        card_4: 'Card 4',
+        card_5: 'Card 5',
+        flop_1: 'Flop 1',
+        flop_2: 'Flop 2',
+        flop_3: 'Flop 3',
+        turn_card: 'Turn Card',
+        river_card: 'River Card',
+        random_hand: '🎲 Randomize Hand',
+        random_flop: '🎲 Randomize Flop',
+        random_turn: '🎲 Randomize Turn',
+        random_river: '🎲 Randomize River',
+        clear_hand: 'Clear Hand',
+        clear_flop: 'Clear Flop',
+        clear_turn: 'Clear Turn',
+        clear_river: 'Clear River',
+        clear_all: '⚠️ Clear All',
+
+        players_position_odds_title: 'Players, Position &amp; Odds',
+        position_title: 'Position (GTO)',
+        opponent_range_title: "Opponents' Range",
+        range_all: 'All',
+        range_loose: 'Loose',
+        range_normal: 'Normal',
+        range_tight: 'Tight',
+        range_all_tip: 'Completely random hands',
+        range_loose_tip: '~55% of all starting hands',
+        range_normal_tip: '~35% of all starting hands',
+        range_tight_tip: '~15% of all starting hands',
+        range_info_plo_note: "PLO uses its own scoring heuristic (pairs/suitedness/connectivity/aces) instead of the Chen formula - see Help for details.",
+        total_win_chance: 'Total Win Chance',
+        total_win_chance_sub: 'Simulated against player count',
+        strategic_advice_title: 'Strategic Advice',
+        adv_fold: 'Fold',
+        adv_call: 'Check/Call',
+        adv_raise: 'Raise',
+        equity_by_street_title: 'Equity by Street (Preflop → Flop → Turn → River)',
+        equity_chart_empty: 'Choose your hole cards to see the equity progression',
+
+        pot_odds_title: 'Pot Odds Calculator',
+        pot_odds_pot_label: 'Pot',
+        pot_odds_bet_label: 'Bet to Call',
+        pot_odds_ratio_label: 'Odds',
+        pot_odds_needed_label: 'Needed',
+        pot_odds_yours_label: 'Yours',
+        pot_odds_verdict_default: 'Fill in the pot and bet to compare with your equity',
+        pot_odds_verdict_fill: 'Fill in pot size and bet to call.',
+        pot_odds_explainer_default: 'Fill in the pot and bet above to see the math here.',
+        pot_odds_verdict_good: '✅ Calling is mathematically profitable (margin: +{margin} percentage points)',
+        pot_odds_verdict_bad: '❌ Calling is unprofitable without implied odds (margin: {margin} percentage points)',
+        pot_odds_explainer_result: 'equity needed',
+
+        odds_engine_title: 'Odds Engine / Probability Analysis by Street &amp; Opponents',
+        col_hand: 'Hand',
+        col_comment: 'Comment',
+        col_flop_formula: 'Flop Formula',
+        col_flop_pct: 'Flop %',
+        col_turn_formula: 'Turn Formula',
+        col_turn_pct: 'Turn %',
+        col_river_formula: 'River Formula',
+        col_river_pct: 'River %',
+        col_multiplayer_formula: 'Multi-Player Formula',
+        col_win_chance: 'Win Chance',
+        row_pair: 'PAIR',
+        row_trips: 'TRIPS',
+        row_straight: 'STRAIGHT',
+        row_flush: 'FLUSH',
+        row_fh: 'FULL HOUSE',
+
+        status_done: 'Done',
+        status_missed: 'Missed',
+        status_board: 'Board',
+        status_none: 'None',
+        status_comb: 'Comb.',
+        status_combinatorics: 'Combinatorics',
+        status_simulated: 'Simulated',
+        omaha_formula_na: 'Sim.',
+        omaha_formula_na_type: 'See Win Chance \u2192',
+
+        c_pocket_pair_in: 'Pocket pair of {card}',
+        c_pair_in: 'Pair of {card}',
+        c_hit_top: 'Hit top {card}',
+        c_trips_in_pocket: 'Trips of {card} (Pocket)',
+        c_trips_in: 'Trips of {card}',
+        c_pocket_pair_runner: 'Pocket pair (Runner)',
+        c_preflop_draw: 'Pre-flop draw',
+        c_straight_to: 'Straight to {card}',
+        c_open_ended: 'Open-ended draw',
+        c_gutshot: 'Gutshot',
+        c_no_straight_draw: 'No straight draw',
+        c_flush_in: 'Flush in {suit}',
+        c_flush_draw_in: 'Flush draw in {suit}',
+        c_no_flush_draw: 'No flush draw',
+        c_full_house_high: 'Full house ({card}s high)',
+        c_full_house_draw_high: 'Full house draw ({card}s high)',
+        word_ace: 'Ace',
+
+        player_count_note: 'Started with {baseline} · {n} estimated remaining ({street})',
+        street_preflop: 'Preflop',
+        street_flop: 'Flop',
+        street_turn: 'Turn',
+        street_river: 'River',
+
+        explainer_tag_outs: 'X / 47 · X / 46',
+        explainer_def_outs: 'Outs ÷ unknown cards. 47 cards unknown after the flop (52 − 2 hole cards − 3 board cards), 46 after the turn.',
+        explainer_tag_comb: 'Comb.',
+        explainer_def_comb: 'The probability is calculated directly with combinatorics (e.g. pocket pair→trips on flop ≈11.8%), not a simple outs ratio.',
+        explainer_tag_done_missed: 'Done / Missed',
+        explainer_def_done_missed: 'The hand is already complete (100%) or the draw missed entirely (0%) at that street.',
+        explainer_tag_board_none: 'Board / None',
+        explainer_def_board_none: '"Board" = the hand comes from the community cards. "None" = no live draw left for that hand type.',
+        explainer_formula_title: 'Flop/Turn/River %:',
+        explainer_formula_text: 'Outs ÷ Unknown cards × 100. E.g. 6 outs of 47 → 6÷47×100 ≈ 12.77%.',
+        explainer_formula_combined: '<strong>Flop/Turn/River %:</strong> Outs ÷ Unknown cards × 100. E.g. 6 outs of 47 → 6÷47×100 ≈ 12.77%.',
+        explainer_sim_title: 'Multi-Player Formula &amp; Win Chance:',
+        explainer_sim_text: 'No outs ratio – a Monte Carlo simulation deals thousands of random boards/opponent hands (adjusted for range & players remaining) and counts how often the hand wins.',
+        explainer_sim_combined: '<strong>Multi-Player Formula &amp; Win Chance:</strong> No outs ratio – a Monte Carlo simulation deals thousands of random boards/opponent hands (adjusted for range &amp; players remaining) and counts how often the hand wins.',
+
+        help_button_title: 'Help &amp; user guide',
+        about_button_title: 'About this app',
+        lang_button_title: 'Byt språk / Switch language',
+        about_modal_title: 'ℹ️ About',
+
+        help_modal_title: '📖 User Guide',
+        help_modal_body: `
+            <h3>Cards - Hole Cards / Flop / Turn / River</h3>
+            <p>Click a module to activate it (blue outline around the card slot), then choose a <strong>suit</strong> and a <strong>value</strong> - the card is placed automatically once both are chosen, and focus jumps to the next card slot.</p>
+            <p>Keyboard: <code>S H C D</code> for suit (Spades/Hearts/Clubs/Diamonds), <code>2-9, T, J, Q, K, A</code> for value (T = 10).</p>
+            <p><strong>Randomize</strong> fills the module's cards with random (not already used) cards. <strong>Clear [module]</strong> only empties that module.</p>
+
+            <h3>Game Variant: Hold'em / PLO (4 cards) / PLO (5 cards)</h3>
+            <p>Switch game variant at the top of the hole-card module. In PLO, 4 or 5 hole-card slots are shown instead of 2, and switching modes always clears the hand (the number of cards differs between modes). Remember Omaha's core rule: you MUST use exactly 2 of your hole cards together with exactly 3 board cards - unlike Hold'em, where 0, 1, or 2 hole cards may be used freely.</p>
+
+            <h3>Player Count, Position &amp; Opponents' Range</h3>
+            <p>Use +/- or type in the number of players at the table. During the hand the number automatically adjusts downward (e.g. "3 estimated remaining") since the app assumes some players have statistically folded by the flop/turn/river - what you set yourself never changes, and <strong>Clear All</strong> always resets it to your number.</p>
+            <p><strong>Position</strong> (BTN/CO/UTG) and <strong>Opponents' Range</strong> (All/Loose/Normal/Tight) affect the equity simulation and the strategic advice - a tighter assumed range makes e.g. weak hands worse, since opponents are then assumed to hold stronger cards on average.</p>
+
+            <h3>Total Win Chance, Strategic Advice &amp; Equity by Street</h3>
+            <p><strong>Total Win Chance</strong> is the result of a Monte Carlo simulation (thousands of random outcomes) - not a simple formula. <strong>Strategic Advice</strong> (Fold/Check/Raise) compares it against a simple threshold model based on how many players remain and your position.</p>
+            <p>The <strong>Equity by Street</strong> graph shows how the win chance changed Preflop → Flop → Turn → River, including how many players were assumed to remain at each step (the number in parentheses).</p>
+
+            <h3>Pot Odds Calculator</h3>
+            <p>Fill in <strong>Pot</strong> (what's already in the pot) and <strong>Bet to Call</strong>. The box calculates what equity you need for a call to be mathematically profitable (<code>Bet ÷ (Pot + Bet) × 100</code>), shows the calculation step by step, and compares it against your simulated equity above. Resets to 100/25 by <strong>Clear All</strong>.</p>
+
+            <h3>Odds Engine (the table at the bottom)</h3>
+            <p>Shows the chance of making each hand type (Pair/Trips/Straight/Flush/Full House) by flop/turn/river, plus the simulated win chance per hand type on the far right. A small explainer box below the table describes what the labels ("X/47", "Comb.", "Done", "Board" etc.) mean. <strong>In PLO mode</strong>, the formula columns show "Sim." instead, since the exact Hold'em formulas don't apply once you have more than 2 hole cards to choose from - the win-chance columns on the right are still correct for PLO too.</p>
+
+            <h3>Good to Know</h3>
+            <ul>
+                <li>All probabilities are based on random simulation (Monte Carlo) except where an exact combinatorial formula is used - nothing is guessed "by hand".</li>
+                <li>You can't pick the same card twice - the app blocks duplicates automatically.</li>
+                <li><strong>Clear All</strong> resets the whole hand: cards, pot odds, and (indirectly) the equity-by-street graph, but keeps your set player count, position, and chosen opponent range.</li>
+            </ul>
+        `,
+
+        about_modal_body: `
+            <div class="about-title">Odds Calculator: Hold'em &amp; Omaha</div>
+            <div class="about-meta">Version 3.0.0 &nbsp;·&nbsp; MaestroHB</div>
+
+            <p>A standalone tool (no server, no account, no data collection) for calculating poker odds and win chances in Texas Hold'em and Pot Limit Omaha (4- and 5-card PLO), in real time as hole cards and board cards are filled in.</p>
+
+            <h3>How the calculations are done</h3>
+            <ul>
+                <li><strong>Win chance / equity</strong>: Monte Carlo simulation - thousands of random boards and opponent hands, adjusted for the chosen opponent range (Hold'em only) and the statistically estimated number of players remaining. Works correctly for both Hold'em and PLO.</li>
+                <li><strong>Draw odds per hand type</strong> (Pair/Trips/Straight/Flush/Full House table): outs-based or direct combinatorial calculation, but this applies to Hold'em ONLY - see "PLO mode" below.</li>
+                <li><strong>Pot odds</strong>: simple mathematical formula, <code>Bet ÷ (Pot + Bet) × 100</code>.</li>
+            </ul>
+
+            <h3>PLO mode - what's different</h3>
+            <p>In Omaha you must use exactly 2 of your 4 (or 5) hole cards together with exactly 3 board cards (the "4-2 rule"), unlike Hold'em where you may freely use 0, 1, or 2 hole cards. The win-chance columns correctly account for this in both games. However, the exact "outs formulas" (e.g. "6/47") in the table are hardcoded for Hold'em's fixed 2 hole cards and would be mathematically wrong in Omaha, since which 2 of your cards actually get used varies by deal - PLO mode therefore shows "Sim." in those columns instead of a misleading number. The assumed opponent range (Loose/Normal/Tight) is based, in Hold'em, on the Chen formula's 169 starting-hand types, which has no direct Omaha equivalent - PLO modes therefore use a separate scoring heuristic (pairs, double-suitedness, connectivity, ace bonus) to estimate starting-hand strength instead. Both models are educational approximations, not equity-solved ranges.</p>
+
+            <h3>Important to know</h3>
+            <p>All numbers are statistical estimates intended as decision support and a practice aid - not a guarantee of outcome, and not gambling advice for money you can't afford to lose. The models for opponent ranges and players remaining are simplified templates, not derived from real hand-history data.</p>
+        `
+    }
+};
+
+/**
+ * Slår upp en översättning och ersätter ev. {platshållare} med värden ur vars.
+ */
+function t(key, vars) {
+    const dict = translations[currentLanguage] || translations.sv;
+    let str = (dict && dict[key] !== undefined) ? dict[key] : (translations.sv[key] !== undefined ? translations.sv[key] : key);
+    if (vars) {
+        for (const k in vars) {
+            str = str.split('{' + k + '}').join(vars[k]);
+        }
+    }
+    return str;
+}
+
+/**
+ * Går igenom alla element märkta med data-i18n / data-i18n-html /
+ * data-i18n-placeholder och sätter deras text enligt currentLanguage.
+ */
+function applyStaticTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-html]').forEach(el => {
+        el.innerHTML = t(el.getAttribute('data-i18n-html'));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder')));
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.setAttribute('title', t(el.getAttribute('data-i18n-title')));
+    });
+    document.documentElement.setAttribute('lang', currentLanguage);
+}
+
+function updateLangButtonsUI() {
+    document.querySelectorAll('.btn-lang').forEach(b => {
+        if (b.getAttribute('data-lang') === currentLanguage) b.classList.add('selected');
+        else b.classList.remove('selected');
+    });
+}
+
+// Andra moduler (ui.js, potOdds.js) behöver köra om sina egna uppdateringar
+// när språket byts, men i18n.js ska inte importera DEM (se motivering i
+// filhuvudet ovan). De registrerar sig istället här.
+const languageChangeListeners = [];
+function onLanguageChange(callback) {
+    languageChangeListeners.push(callback);
+}
+
+/**
+ * Byter aktivt språk, sparar valet (om möjligt) och kör om alla
+ * beräkningar som bygger dynamisk text, så tabellen/pott-odds/grafen
+ * genast visas på det nya språket också.
+ */
+function setLanguage(lang) {
+    if (lang !== 'sv' && lang !== 'en') return;
+    currentLanguage = lang;
+    try { localStorage.setItem('oddsraknare_lang', lang); } catch (e) { /* ignorera */ }
+
+    applyStaticTranslations();
+    updateLangButtonsUI();
+
+    languageChangeListeners.forEach(cb => cb());
+}
+
+// setLanguage() anropas direkt från inline onclick-attribut i HTML:en
+// (t.ex. onclick="setLanguage('en')"). Den är redan en global funktion
+// (klassiskt skript, delad global scope), men skrivs ut explicit här för
+// tydlighets skull - samma mönster upprepas för övriga onclick-anropade
+// funktioner i ui.js, helpGuide.js och potOdds.js.
+window.setLanguage = setLanguage;
+
+</script>
+<script>
+/* ===================================================================
+   utils.js
+   Små, fristående hjälpfunktioner utan beroenden till andra moduler
+   eller till DOM-state (utom currentLanguage, för språkanpassad
+   textformatering).
+   =================================================================== */
+
+
+    /**
+     * Genererar alla k-kombinationer (oordnade delmängder av storlek k) ur en array.
+     * Används av PLO-utvärderingen (handEvaluator.js) för att pröva alla lagliga
+     * val av exakt 2 hålkort + exakt 3 bordkort ("4-2-regeln" i Omaha).
+     * Liten indata (max 5 hålkort, 5 bordkort) så inga prestandaproblem.
+     */
+    function getCombinations(arr, k) {
+        const results = [];
+        const combo = [];
+        function recurse(start) {
+            if (combo.length === k) {
+                results.push(combo.slice());
+                return;
+            }
+            for (let i = start; i < arr.length; i++) {
+                combo.push(arr[i]);
+                recurse(i + 1);
+                combo.pop();
+            }
+        }
+        recurse(0);
+        return results;
+    }
+
+    function getCardValueNum(valStr) {
+        if (!valStr) return 0;
+        if (valStr === 'A') return 14; if (valStr === 'K') return 13;
+        if (valStr === 'Q') return 12; if (valStr === 'J') return 11;
+        return parseInt(valStr, 10);
+    }
+
+    function formatPokerName(valStr) {
+        if (!valStr) return '';
+        if (['A', 'K', 'Q', 'J'].includes(valStr)) {
+            return valStr + valStr;
+        }
+        // Engelska: "9s" (nines). Svenska: "9:or" (nior). Ess/Kung/Dam/Knekt
+        // hanteras redan ovan (dubblerad bokstav funkar i båda språken).
+        if (currentLanguage === 'en') {
+            return valStr + 's';
+        }
+        return valStr + ':or';
+    }
+
+    function checkStraightPresent(cardsArray) {
+        let values = cardsArray.map(c => getCardValueNum(c.value));
+        let uniqueVals = [...new Set(values)];
+        
+        if (uniqueVals.includes(14)) {
+            uniqueVals.push(1);
+        }
+        
+        uniqueVals.sort((a, b) => a - b);
+        
+        let consecutiveCount = 1;
+        let hasStraight = false;
+        let maxStraightHighCard = 0;
+
+        for (let i = 0; i < uniqueVals.length - 1; i++) {
+            if (uniqueVals[i+1] - uniqueVals[i] === 1) {
+                consecutiveCount++;
+                if (consecutiveCount >= 5) {
+                    hasStraight = true;
+                    maxStraightHighCard = uniqueVals[i+1];
+                }
+            } else {
+                consecutiveCount = 1;
+            }
+        }
+        return { hasStraight, highCard: maxStraightHighCard };
+    }
+
+
+
+</script>
+<script>
+/* ===================================================================
+   handEvaluator.js
+   Ren pokerlogik: rankar en 7-korts hand (2 hålkort + upp till 5
+   bordkort) till ett jämförbart poängtal. Ingen DOM, inget state –
+   tar bara emot kortdata och returnerar ett nummer.
+
+   Poängintervall (högre = bättre hand):
+     8 000 000+  Färgstege (straight flush)
+     7 000 000+  Fyrtal (four of a kind)
+     6 000 000+  Kåk (full house)
+     5 000 000+  Färg (flush)
+     4 000 000+  Stege (straight)
+     3 000 000+  Triss (three of a kind)
+     2 000 000+  Två par
+     1 000 000+  Ett par
+     <1 000 000  High card
+
+   Beror på: getCombinations() (utils.js) - måste därför laddas efter
+   utils.js. Enda funktionen andra filer ska anropa är
+   evaluateBestHand() (se botten av filen) - allt annat ovan är
+   implementationsdetaljer (namngivna med understreck-prefix på
+   scratch-buffertarna som en signal om det).
+   =================================================================== */
+
+
+    function evaluate7CardHand(cards) {
+        let sorted = [...cards].sort((a, b) => b.valueNum - a.valueNum);
+        let suits = { '♠':[], '♥':[], '♣':[], '♦':[] };
+        cards.forEach(c => suits[c.suit].push(c.valueNum));
+        let flushSuit = Object.keys(suits).find(s => suits[s].length >= 5);
+        
+        if (flushSuit) {
+            let flushCards = suits[flushSuit].sort((a,b) => b - a);
+            for (let i = 0; i <= flushCards.length - 5; i++) {
+                if (flushCards[i] - flushCards[i+4] === 4) return 8000000 + flushCards[i];
+            }
+            if (flushCards.includes(14) && flushCards.includes(5) && flushCards.includes(4) && flushCards.includes(3) && flushCards.includes(2)) {
+                return 8000005;
+            }
+            return 5000000 + flushCards[0]*10000 + flushCards[1]*1000 + flushCards[2]*100 + flushCards[3]*10 + flushCards[4];
+        }
+
+        let counts = {}; cards.forEach(c => counts[c.valueNum] = (counts[c.valueNum] || 0) + 1);
+        let pairs = [], trips = [], quads = [];
+        for (let val in counts) {
+            let c = counts[val]; let v = parseInt(val);
+            if (c === 4) quads.push(v);
+            else if (c === 3) trips.push(v);
+            else if (c === 2) pairs.push(v);
+        }
+        quads.sort((a,b)=>b-a); trips.sort((a,b)=>b-a); pairs.sort((a,b)=>b-a);
+
+        if (quads.length > 0) {
+            let kicker = sorted.find(c => c.valueNum !== quads[0]).valueNum;
+            return 7000000 + quads[0] * 15 + kicker;
+        }
+        if (trips.length > 0 && (trips.length > 1 || pairs.length > 0)) {
+            let fullTrips = trips[0];
+            let fullPair = trips.length > 1 ? trips[1] : pairs[0];
+            return 6000000 + fullTrips * 15 + fullPair;
+        }
+
+        let uniqueVals = [...new Set(sorted.map(c => c.valueNum))];
+        for (let i = 0; i <= uniqueVals.length - 5; i++) {
+            if (uniqueVals[i] - uniqueVals[i+4] === 4) return 4000000 + uniqueVals[i];
+        }
+        if (uniqueVals.includes(14) && uniqueVals.includes(5) && uniqueVals.includes(4) && uniqueVals.includes(3) && uniqueVals.includes(2)) {
+            return 4000005;
+        }
+
+        if (trips.length > 0) {
+            let kickers = sorted.filter(c => c.valueNum !== trips[0]).slice(0, 2).map(c => c.valueNum);
+            return 3000000 + trips[0]*225 + kickers[0]*15 + kickers[1];
+        }
+        if (pairs.length >= 2) {
+            let kicker = sorted.find(c => c.valueNum !== pairs[0] && c.valueNum !== pairs[1]).valueNum;
+            return 2000000 + pairs[0]*225 + pairs[1]*15 + kicker;
+        }
+        if (pairs.length === 1) {
+            let kickers = sorted.filter(c => c.valueNum !== pairs[0]).slice(0, 3).map(c => c.valueNum);
+            return 1000000 + pairs[0]*3375 + kickers[0]*225 + kickers[1]*15 + kickers[2];
+        }
+        return sorted.slice(0, 5).reduce((acc, c, idx) => acc + c.valueNum * Math.pow(15, 4 - idx), 0);
+    }
+
+    /**
+     * Omaha/PLO-utvärdering ("4-2-regeln"): till skillnad från Hold'em, där man
+     * fritt får använda 0, 1 eller 2 av sina hålkort, MÅSTE man i Omaha använda
+     * exakt 2 av sina hålkort (4 vid vanlig PLO, 5 vid 5-korts PLO) tillsammans
+     * med exakt 3 av de 5 bordkorten.
+     *
+     * Provar därför alla lagliga kombinationer av 2 hålkort × 3 bordkort och
+     * återanvänder evaluate7CardHand() (som redan generellt rankar valfri
+     * uppsättning kort) på varje giltig 5-korts-hand, och behåller det högsta
+     * poängtalet. Kräver getCombinations() (utils.js) och måste därför laddas
+     * efter utils.js precis som resten av filen.
+     *
+     * @param {{suit:string, valueNum:number}[]} holeCards - spelarens 4 eller 5 hålkort.
+     * @param {{suit:string, valueNum:number}[]} boardCards - kända bordkort (3-5 st).
+     * @returns {number} högsta möjliga poäng, samma skala som evaluate7CardHand().
+     */
+    /* ===================================================================
+       Snabb 5-korts-evaluering för Omaha-sökningen nedan.
+
+       evaluateOmahaHand() måste anropa en hand-evaluering upp till 100
+       gånger PER HANDVÄRDERING (alla lagliga 2-hål×3-bord-kombinationer),
+       vilket i sin tur sker en gång per spelare och Monte Carlo-iteration.
+       Att återanvända evaluate7CardHand() (som skapar nya objekt/arrayer
+       vid varje anrop) blev mätbart för långsamt i PLO med många
+       motståndare. Denna variant gör exakt samma poängsättning men enbart
+       för EXAKT 5 kort, och återanvänder samma typed arrays/scratch-arrayer
+       mellan anrop istället för att allokera nya varje gång.
+       =================================================================== */
+    const _suitIndex = { '♠': 0, '♥': 1, '♣': 2, '♦': 3 };
+    const _rankCounts = new Int8Array(15);   // index 2-14, index 0-1 oanvända
+    const _suitCounts = new Int8Array(4);
+    const _suitRanks = [[], [], [], []];
+
+    function evaluate5CardHandFast(cards) {
+        _rankCounts.fill(0);
+        _suitCounts.fill(0);
+        _suitRanks[0].length = 0; _suitRanks[1].length = 0;
+        _suitRanks[2].length = 0; _suitRanks[3].length = 0;
+
+        for (let i = 0; i < 5; i++) {
+            const c = cards[i];
+            _rankCounts[c.valueNum]++;
+            const si = _suitIndex[c.suit];
+            _suitCounts[si]++;
+            _suitRanks[si].push(c.valueNum);
+        }
+
+        // --- Färg / färgstege (alla 5 kort samma färg, enda möjliga fallet
+        // eftersom vi bara har exakt 5 kort totalt) ---
+        for (let s = 0; s < 4; s++) {
+            if (_suitCounts[s] === 5) {
+                const ranks = _suitRanks[s].slice().sort((a, b) => b - a);
+                if (ranks[0] - ranks[4] === 4) return 8000000 + ranks[0];
+                if (ranks[0] === 14 && ranks[1] === 5 && ranks[2] === 4 && ranks[3] === 3 && ranks[4] === 2) return 8000005;
+                return 5000000 + ranks[0] * 10000 + ranks[1] * 1000 + ranks[2] * 100 + ranks[3] * 10 + ranks[4];
+            }
+        }
+
+        let quads = -1, trips = -1;
+        const pairs = [];
+        for (let v = 14; v >= 2; v--) {
+            const c = _rankCounts[v];
+            if (c === 4) quads = v;
+            else if (c === 3) trips = v;
+            else if (c === 2) pairs.push(v);
+        }
+
+        if (quads >= 0) {
+            let kicker = 0;
+            for (let v = 14; v >= 2; v--) { if (v !== quads && _rankCounts[v] > 0) { kicker = v; break; } }
+            return 7000000 + quads * 15 + kicker;
+        }
+        if (trips >= 0 && pairs.length > 0) {
+            return 6000000 + trips * 15 + pairs[0]; // kåk - med exakt 5 kort finns aldrig mer än en triss+ett par
+        }
+
+        const uniqueVals = [];
+        for (let v = 14; v >= 2; v--) { if (_rankCounts[v] > 0) uniqueVals.push(v); }
+        if (uniqueVals.length >= 5 && uniqueVals[0] - uniqueVals[4] === 4) return 4000000 + uniqueVals[0];
+        if (uniqueVals.includes(14) && uniqueVals.includes(5) && uniqueVals.includes(4) && uniqueVals.includes(3) && uniqueVals.includes(2)) return 4000005;
+
+        if (trips >= 0) {
+            const kickers = [];
+            for (let v = 14; v >= 2 && kickers.length < 2; v--) { if (v !== trips && _rankCounts[v] > 0) kickers.push(v); }
+            return 3000000 + trips * 225 + kickers[0] * 15 + kickers[1];
+        }
+        if (pairs.length >= 2) {
+            let kicker = 0;
+            for (let v = 14; v >= 2; v--) { if (_rankCounts[v] === 1) { kicker = v; break; } }
+            return 2000000 + pairs[0] * 225 + pairs[1] * 15 + kicker;
+        }
+        if (pairs.length === 1) {
+            const kickers = [];
+            for (let v = 14; v >= 2 && kickers.length < 3; v--) { if (v !== pairs[0] && _rankCounts[v] > 0) kickers.push(v); }
+            return 1000000 + pairs[0] * 3375 + kickers[0] * 225 + kickers[1] * 15 + kickers[2];
+        }
+
+        let total = 0, idx = 0;
+        for (let v = 14; v >= 2 && idx < 5; v--) { if (_rankCounts[v] > 0) { total += v * Math.pow(15, 4 - idx); idx++; } }
+        return total;
+    }
+
+    // Förberäknade index-kombinationer (bara siffror, inga kortobjekt) så att
+    // evaluateOmahaHand() slipper bygga om samma kombinationslistor med
+    // getCombinations() vid varje enskilt anrop - se kommentar ovan om varför
+    // detta anropas väldigt många gånger.
+    const _HOLE_COMBO_IDX = {
+        4: getCombinations([0, 1, 2, 3], 2),
+        5: getCombinations([0, 1, 2, 3, 4], 2)
+    };
+    const _BOARD_COMBO_IDX_5 = getCombinations([0, 1, 2, 3, 4], 3);
+
+    function evaluateOmahaHand(holeCards, boardCards) {
+        if (boardCards.length < 3) return 0; // inget lagligt val möjligt än
+
+        const holeIdxCombos = _HOLE_COMBO_IDX[holeCards.length] || getCombinations(holeCards.map((_, i) => i), 2);
+        const boardIdxCombos = (boardCards.length === 5) ? _BOARD_COMBO_IDX_5 : getCombinations(boardCards.map((_, i) => i), 3);
+
+        let best = 0;
+        const five = [null, null, null, null, null]; // återanvänd samma array för varje kandidathand
+        for (const hIdx of holeIdxCombos) {
+            five[0] = holeCards[hIdx[0]];
+            five[1] = holeCards[hIdx[1]];
+            for (const bIdx of boardIdxCombos) {
+                five[2] = boardCards[bIdx[0]];
+                five[3] = boardCards[bIdx[1]];
+                five[4] = boardCards[bIdx[2]];
+                const score = evaluate5CardHandFast(five);
+                if (score > best) best = score;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Gemensam ingång för equityEngine.js: väljer rätt utvärderingsregel utifrån
+     * handSize (2 = Texas Hold'em, 4/5 = PLO). Håller equityEngine.js oberoende
+     * av vilket spel som simuleras. Detta är den enda funktionen i den här
+     * filen som andra filer ska anropa direkt - allt annat ovan (evaluate7CardHand, evaluateOmahaHand,
+     * evaluate5CardHandFast, scratch-buffertarna) är privata implementations-
+     * detaljer som ingen annan fil ska bero på direkt.
+     */
+    function evaluateBestHand(holeCards, boardCards, handSize) {
+        if (handSize === 2) {
+            return evaluate7CardHand([...holeCards, ...boardCards]);
+        }
+        return evaluateOmahaHand(holeCards, boardCards);
+    }
+
+
+</script>
+<script>
+/* ===================================================================
+   ranges.js
+   Definierar "motståndarens antagna range" som används av
+   equityEngine.js istället för att anta att motståndarna alltid
+   har helt slumpmässiga hålkort.
+
+   Bygger på de 169 kanoniska starthandstyperna i Texas Hold'em
+   (13 par, 78 suited-kombinationer, 78 offsuit-kombinationer) och
+   rangordnar dem med Chen-formeln - en välkänd, enkel heuristik för
+   preflop-handstyrka. Förvalen (Tight/Normal/Loose) plockar ut de X
+   procent starkaste handtyperna (viktat efter hur många faktiska
+   2-korts-kombinationer varje typ representerar: 6 för par, 4 för
+   suited, 12 för offsuit - totalt 1326 kombinationer).
+
+   OBS: Chen-formeln är en grov heuristik, inte en exakt
+   equity-beräkning - ranges ska ses som pedagogiska ungefärliga
+   profiler ("ungefär de här händerna"), inte exakta procentsatser.
+
+   Filen innehåller även en motsvarande (men separat) heuristik för PLO
+   (4/5 hålkort) längre ner - se "PLO (Omaha) - startandsheuristik".
+   equityEngine.js/ui.js ska bara anropa getOpponentRangeFilter(), som
+   väljer rätt modell utifrån handSize.
+
+   Inga beroenden. Måste laddas FÖRE equityEngine.js eftersom
+   equityEngine.js anropar getOpponentRangeFilter().
+   =================================================================== */
+
+const RANK_SYMBOLS = { 2:'2', 3:'3', 4:'4', 5:'5', 6:'6', 7:'7', 8:'8', 9:'9', 10:'10', 11:'J', 12:'Q', 13:'K', 14:'A' };
+
+// Andel av alla 1326 starthandskombinationer som respektive förval ska täcka.
+const RANGE_PRESETS = {
+    random: null,   // null = ingen filtrering alls (samma beteende som tidigare: 100% slumpmässigt)
+    tight:  0.15,
+    normal: 0.35,
+    loose:  0.55
+};
+
+function chenBasePoints(rank) {
+    if (rank === 14) return 10; // Ess
+    if (rank === 13) return 8;  // Kung
+    if (rank === 12) return 7;  // Dam
+    if (rank === 11) return 6;  // Knekt
+    return rank / 2;            // 10 -> 5, 9 -> 4.5 ... 2 -> 1
+}
+
+/**
+ * Chen-formeln: en klassisk, enkel heuristik för att ranka preflop-starthänder.
+ * hi/lo är numeriska valörer (2-14, Ess=14), suited = true/false.
+ */
+function chenScoreForRanks(hi, lo, suited) {
+    if (hi === lo) {
+        return Math.max(chenBasePoints(hi) * 2, 5);
+    }
+    let score = chenBasePoints(hi);
+    if (suited) score += 2;
+
+    const gap = hi - lo - 1; // 0 = uddlösa grannar (t.ex. KQ), 1 = en lucka (t.ex. KJ) osv.
+    if (gap === 1) score -= 1;
+    else if (gap === 2) score -= 2;
+    else if (gap === 3) score -= 4;
+    else if (gap >= 4) score -= 5;
+
+    // Bonus för raka-potential: uddlös/en-lucka och högsta kortet lägre än Dam.
+    if (gap <= 1 && hi < 12) score += 1;
+
+    return score;
+}
+
+/**
+ * Bygger alla 169 kanoniska starthandstyper med Chen-poäng och hur många
+ * faktiska 2-korts-kombinationer varje typ representerar.
+ */
+function buildAllHandTypes() {
+    let types = [];
+    for (let hi = 14; hi >= 2; hi--) {
+        for (let lo = hi; lo >= 2; lo--) {
+            if (hi === lo) {
+                types.push({ key: RANK_SYMBOLS[hi] + RANK_SYMBOLS[lo], combos: 6, score: chenScoreForRanks(hi, lo, false) });
+            } else {
+                types.push({ key: RANK_SYMBOLS[hi] + RANK_SYMBOLS[lo] + 's', combos: 4, score: chenScoreForRanks(hi, lo, true) });
+                types.push({ key: RANK_SYMBOLS[hi] + RANK_SYMBOLS[lo] + 'o', combos: 12, score: chenScoreForRanks(hi, lo, false) });
+            }
+        }
+    }
+    return types;
+}
+
+let _rangeSetCache = {};
+
+/**
+ * Returnerar en Set med kanoniska handtyper (t.ex. "AKs", "77", "J10o")
+ * som ingår i det angivna förvalet, eller null om ingen filtrering ska
+ * göras ("random" / okänt förval).
+ */
+function getRangeSet(presetKey) {
+    const fraction = RANGE_PRESETS[presetKey];
+    if (!fraction) return null; // "random" (null) eller okänt förval -> ingen filtrering
+
+    if (_rangeSetCache[presetKey]) return _rangeSetCache[presetKey];
+
+    const allTypes = buildAllHandTypes().sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
+    const targetCombos = fraction * 1326;
+
+    let set = new Set();
+    let cumulative = 0;
+    for (let t of allTypes) {
+        if (cumulative >= targetCombos) break;
+        set.add(t.key);
+        cumulative += t.combos;
+    }
+
+    _rangeSetCache[presetKey] = set;
+    return set;
+}
+
+/**
+ * Kanonisk handtyp för två utdelade kort (t.ex. {valueNum:14,suit:'♠'} + {valueNum:13,suit:'♠'} -> "AKs").
+ */
+function canonicalHandType(cardA, cardB) {
+    const hi = Math.max(cardA.valueNum, cardB.valueNum);
+    const lo = Math.min(cardA.valueNum, cardB.valueNum);
+    if (hi === lo) return RANK_SYMBOLS[hi] + RANK_SYMBOLS[lo];
+    const suited = cardA.suit === cardB.suit;
+    return RANK_SYMBOLS[hi] + RANK_SYMBOLS[lo] + (suited ? 's' : 'o');
+}
+
+/**
+ * Ingår handen (cardA, cardB) i rangeSet? rangeSet === null betyder
+ * "ingen filtrering" (alla händer accepteras, dvs. slumpmässigt).
+ */
+function isHandInRange(cardA, cardB, rangeSet) {
+    if (!rangeSet) return true;
+    return rangeSet.has(canonicalHandType(cardA, cardB));
+}
+
+/* ===================================================================
+   PLO (Omaha) - startandsheuristik
+   ===================================================================
+   Chen-formeln ovan bygger på Hold'ems 169 kanoniska 2-korts-starthänder
+   och har ingen meningsfull motsvarighet i Omaha, där man har 4 eller 5
+   hålkort och tusentals möjliga kombinationer. Istället för en exakt
+   kombinatorisk uppräkning (ohanterbart stort för PLO5: C(52,5) ≈ 2,6
+   miljoner händer) används en poängheuristik inspirerad av vedertagna
+   enkla PLO-handvärderingsprinciper:
+
+     - PAR: bonus efter valör (par av höga kort värt mest), med extra
+       synergi-bonus för DUBBELPAR (starkare i Omaha eftersom man då kan
+       bygga kåk/fyrtal via bordet).
+     - SUITED: dubbelsuited (två olika färger, minst 2 kort vardera) ger
+       flest kompletta färgdrag och värderas högst, ensam-suited näst
+       högst, rainbow ingen bonus.
+     - CONNECTIVITY: hur tätt ihop valörerna ligger (inkl. ess-som-1 för
+       hjul-drag/wheel), eftersom raka ofta görs med bordets hjälp.
+     - ESS-BONUS: extra värde för ess, särskilt suited ess (nut-färgdrag).
+     - AVDRAG: "dangler" (ett kort som inte har någon rimlig koppling
+       till de andra) och redundans (3-4 kort av samma valör/färg, där
+       de extra korten sällan går att använda fullt ut) drar ner poängen.
+
+   Detta är en pedagogisk approximation - INTE en equity-solvad range -
+   men ger en konsekvent, rimlig rangordning av starthänder för att
+   simulera "tighta"/"lösa" motståndare i PLO, precis som Chen-formeln
+   gör för Hold'em.
+
+   Score-trösklarna för Tight/Normal/Loose räknas fram med en engångs
+   Monte Carlo-provtagning (inte full uppräkning, som vore för tungt för
+   PLO5) och cachas per (handSize, förval).
+   =================================================================== */
+
+/**
+ * Poängsätter en 4- eller 5-korts Omaha-startehand. cards = array av
+ * {valueNum, suit}-objekt (samma format som equityEngine.js delar ut).
+ */
+function omahaHandScore(cards) {
+    const ranks = cards.map(c => c.valueNum);
+    const rankCounts = {};
+    ranks.forEach(r => { rankCounts[r] = (rankCounts[r] || 0) + 1; });
+
+    const suitCounts = {};
+    cards.forEach(c => { suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1; });
+
+    // --- PAR (+ dubbelpar-synergi, + redundans-avdrag för 3-4 av samma valör) ---
+    let pairBonus = 0;
+    let redundancyPenalty = 0;
+    let pairRanksFound = 0;
+    for (const rStr in rankCounts) {
+        const r = parseInt(rStr, 10);
+        const count = rankCounts[r];
+        if (count >= 2) {
+            pairRanksFound++;
+            pairBonus += (r >= 10) ? 6 : (r >= 7 ? 4 : 2);
+        }
+        if (count > 2) redundancyPenalty += (count - 2) * 4; // triss/fyrtal av samma valör i handen = delvis döda kort
+    }
+    if (pairRanksFound >= 2) pairBonus += 3; // dubbelpar-synergi (kåk-/fyrtal-potential)
+
+    // --- SUITED (dubbelsuited/ensam-suited/rainbow) ---
+    const suitGroupSizes = Object.values(suitCounts).sort((a, b) => b - a);
+    let suitedBonus = 0;
+    if (suitGroupSizes[0] >= 2 && suitGroupSizes[1] >= 2) suitedBonus = 6;      // dubbelsuited
+    else if (suitGroupSizes[0] >= 2) suitedBonus = 3;                          // ensam-suited
+
+    // --- CONNECTIVITY (inkl. ess-som-1 för wheel-drag) ---
+    let uniqueRanks = [...new Set(ranks)].sort((a, b) => a - b);
+    if (uniqueRanks.includes(14)) uniqueRanks = [1, ...uniqueRanks].sort((a, b) => a - b);
+
+    let connectivityBonus = 0;
+    if (uniqueRanks.length < 2) {
+        connectivityBonus = 5; // t.ex. fyrtal i handen - räknas inte som "osammanhängande"
+    } else {
+        let maxGap = 0;
+        for (let i = 1; i < uniqueRanks.length; i++) {
+            maxGap = Math.max(maxGap, uniqueRanks[i] - uniqueRanks[i - 1] - 1);
+        }
+        const span = uniqueRanks[uniqueRanks.length - 1] - uniqueRanks[0];
+        if (maxGap === 0) connectivityBonus = 5;
+        else if (maxGap === 1) connectivityBonus = 3;
+        else if (maxGap === 2) connectivityBonus = 1;
+        if (span <= 3) connectivityBonus += 1;
+    }
+
+    // --- ESS-BONUS (extra för suited ess = nut-färgdrag-potential) ---
+    let aceBonus = 0;
+    const aceCards = cards.filter(c => c.valueNum === 14);
+    aceBonus += aceCards.length * 2;
+    for (const ace of aceCards) {
+        const hasSuitedPartner = cards.some(c => c.valueNum !== 14 && c.suit === ace.suit);
+        if (hasSuitedPartner) { aceBonus += 1; break; } // räkna bonusen max en gång
+    }
+
+    // --- DANGLER-AVDRAG (ett kort utan rimlig koppling till resten) ---
+    let danglerCount = 0;
+    for (const r of uniqueRanks.filter(r => r >= 2)) { // hoppa över den syntetiska ess-som-1
+        if (rankCounts[r] >= 2) continue; // paret räknas inte som dangler
+        const others = uniqueRanks.filter(x => x !== r);
+        const closest = others.length > 0 ? Math.min(...others.map(x => Math.abs(x - r))) : 99;
+        if (closest >= 5) danglerCount++;
+    }
+    const danglerPenalty = Math.min(danglerCount, 2) * 1.5;
+
+    const total = pairBonus + suitedBonus + connectivityBonus + aceBonus - redundancyPenalty - danglerPenalty;
+    return Math.max(0, total);
+}
+
+let _omahaThresholdCache = {};
+
+/**
+ * Räknar (en gång per handSize+förval, sedan cachat) fram vilket
+ * omahaHandScore()-värde som motsvarar toppen X% av alla möjliga 4-
+ * eller 5-korts starthänder, via slumpmässig provtagning (Monte Carlo)
+ * istället för full uppräkning - C(52,5) ≈ 2,6 miljoner hade varit för
+ * tungt att räkna om varje gång användaren byter förval.
+ */
+function getOmahaScoreThreshold(presetKey, handSize) {
+    const fraction = RANGE_PRESETS[presetKey];
+    if (!fraction) return null; // "random" -> ingen filtrering
+
+    const cacheKey = handSize + '_' + presetKey;
+    if (_omahaThresholdCache[cacheKey] !== undefined) return _omahaThresholdCache[cacheKey];
+
+    const SAMPLE_SIZE = 20000;
+    const suitList = ['♠', '♥', '♣', '♦'];
+    const fullDeck = [];
+    for (let v = 2; v <= 14; v++) {
+        for (const s of suitList) fullDeck.push({ valueNum: v, suit: s });
+    }
+
+    let scores = [];
+    for (let i = 0; i < SAMPLE_SIZE; i++) {
+        let pool = fullDeck.slice();
+        let hand = [];
+        for (let k = 0; k < handSize; k++) {
+            const idx = Math.floor(Math.random() * pool.length);
+            hand.push(pool[idx]);
+            pool[idx] = pool[pool.length - 1];
+            pool.pop();
+        }
+        scores.push(omahaHandScore(hand));
+    }
+    scores.sort((a, b) => a - b);
+    const idx = Math.min(Math.floor((1 - fraction) * scores.length), scores.length - 1);
+    const threshold = scores[idx];
+
+    _omahaThresholdCache[cacheKey] = threshold;
+    return threshold;
+}
+
+/**
+ * Ingår Omaha-handen (cards, 4 eller 5 st) i det angivna förvalet?
+ */
+function isOmahaHandInRange(cards, handSize, presetKey) {
+    const threshold = getOmahaScoreThreshold(presetKey, handSize);
+    if (threshold === null) return true; // "random"
+    return omahaHandScore(cards) >= threshold;
+}
+
+/**
+ * Gemensam ingång för equityEngine.js: väljer Hold'em-Chen-rangen eller
+ * Omaha-heuristiken utifrån handSize, och returnerar en enkel
+ * filterfunktion (cards[] -> bool) - eller null om inget filter ska
+ * tillämpas ("Alla"/random). Detta är den enda funktionen i den här filen
+ * som andra filer ska anropa direkt - allt annat (Chen-formeln,
+ * Omaha-poängheuristiken, caches) är implementationsdetaljer.
+ */
+function getOpponentRangeFilter(presetKey, handSize) {
+    if (!RANGE_PRESETS[presetKey]) return null; // "random" eller okänt förval
+
+    if (handSize === 2) {
+        const set = getRangeSet(presetKey);
+        if (!set) return null;
+        return (cards) => isHandInRange(cards[0], cards[1], set);
+    }
+
+    const threshold = getOmahaScoreThreshold(presetKey, handSize);
+    if (threshold === null) return null;
+    return (cards) => omahaHandScore(cards) >= threshold;
+}
+
+</script>
+<script>
+/* ===================================================================
+   playerEstimator.js
+   Uppskattar hur många spelare som statistiskt sett borde vara kvar i
+   handen vid respektive gata, givet det antal spelare som satt sig
+   ner vid bordet från start (baslinjen som användaren själv ställt in
+   via "Antal Spelare").
+
+   Tanken: i verkligheten faller spelare bort mellan gatorna (preflop-
+   raises, continuation bets osv.), så om floppen/turnen/rivern redan
+   är synlig är det statistiskt osannolikt att alla ursprungliga
+   spelare fortfarande är kvar i potten. Detta är en grov, schematisk
+   modell - inte en exakt statistik - avsedd att göra
+   equity-beräkningen mer verklighetstrogen ju längre handen gått.
+
+   Inga beroenden. Bör laddas tidigt (används av equityEngine.js).
+   =================================================================== */
+
+// Ungefärlig andel av DE URSPRUNGLIGA spelarna som statistiskt sett
+// fortfarande är kvar i handen vid respektive gata.
+const STREET_RETENTION = {
+    preflop: 1.00, // innan floppen är synlig antar vi att ingen information om fold finns än
+    flop:    0.55,
+    turn:    0.35,
+    river:   0.22
+};
+
+/**
+ * @param {number} baselineCount - antal spelare satt av användaren (t.ex. 6).
+ * @param {string} streetKey - 'preflop' | 'flop' | 'turn' | 'river'.
+ * @returns {number} uppskattat antal spelare kvar (minst 2, aldrig fler än baseline).
+ */
+function estimateActivePlayers(baselineCount, streetKey) {
+    const factor = STREET_RETENTION[streetKey] !== undefined ? STREET_RETENTION[streetKey] : 1.0;
+    const raw = Math.round(baselineCount * factor);
+    return Math.max(2, Math.min(baselineCount, raw));
+}
+
+/**
+ * Hjälpfunktion: vilken gata befinner vi oss på givet vilka kort som är ifyllda?
+ */
+function getCurrentStreetKey(flopReady, turnReady, riverReady) {
+    if (riverReady) return 'river';
+    if (turnReady) return 'turn';
+    if (flopReady) return 'flop';
+    return 'preflop';
+}
+
+</script>
+<script>
+/* ===================================================================
+   equityEngine.js
+   Monte Carlo-simulering: uppskattar vinstchans (equity) genom att
+   simulera tusentals slumpade bord/motståndarhänder och räkna hur
+   ofta spelarens hand vinner/delar potten, uppdelat på högsta
+   handtyp som nåddes ("PAR", "TRISS", "STEGE", "FÄRG", "KÅK").
+
+   Motståndarnas hålkort delas som standard helt slumpmässigt, men kan
+   filtreras mot en antagen range (se ranges.js) - t.ex. "Tight" så att
+   motståndarna bara får händer som ingår i den rangen, via förkastande
+   slumpning (rejection sampling): dra handSize slumpkort ur kortleken,
+   kolla om kombinationen finns i rangen, annars försök igen.
+
+   Beror på: getCardValueNum() (utils.js), evaluateBestHand()
+   (handEvaluator.js - väljer Hold'em- eller Omaha-regel utifrån
+   handSize), getOpponentRangeFilter() (ranges.js) och
+   estimateActivePlayers() (playerEstimator.js). Måste laddas EFTER
+   alla dessa.
+
+   PLO-stöd: handSize (2/4/5) styr både hur många kort motståndarna
+   delas och vilken utvärderingsregel (fritt val i Hold'em, "exakt 2
+   hålkort + exakt 3 bordkort" i Omaha) som används. opponentRangeFilter
+   (från getOpponentRangeFilter() i ranges.js) väljer automatiskt rätt
+   rangemodell utifrån handSize - Chen-formeln för Hold'em, en egen
+   poängheuristik för PLO - så Loose/Normal/Tight fungerar i båda spelen.
+
+   Enda publika funktionerna är calculateTrueEquity() och
+   calculateEquityByStreet() - drawRandomCard()/drawOpponentHand() är
+   privata hjälpfunktioner.
+   =================================================================== */
+
+
+    /**
+     * Drar EN slumpmässig, ännu inte använd kort ur poolen och tar bort
+     * det (så det inte kan delas ut igen). Muterar pool-arrayen.
+     */
+    function drawRandomCard(pool) {
+        const idx = Math.floor(Math.random() * pool.length);
+        const card = pool[idx];
+        pool[idx] = pool[pool.length - 1];
+        pool.pop();
+        return card;
+    }
+
+    /**
+     * Drar en motståndarhand (handSize kort: 2 i Hold'em, 4/5 i PLO) ur poolen.
+     * rangeFilter är en enkel funktion (cards[] -> bool) från
+     * getOpponentRangeFilter() (ranges.js) som avgör om en kandidathand
+     * ingår i den antagna rangen - eller null för "ingen filtrering" (helt
+     * slumpmässiga motståndarhänder). Samma kod hanterar alltså både
+     * Hold'ems Chen-baserade ranges och PLO:s poängheuristik, eftersom
+     * båda till syvende og sidst bara är "cards[] -> bool".
+     *
+     * Använder förkastande slumpning (rejection sampling): plocka handSize
+     * slumpmässiga, distinkta kort ur poolen, testa mot rangeFilter, och
+     * försök igen om det inte matchar - upp till maxAttempts försök. Om
+     * ingen matchande hand hittas (mycket smal range + få kort kvar)
+     * faller vi tillbaka på vilka kort som helst, så simuleringen aldrig
+     * fastnar.
+     */
+    function drawOpponentHand(pool, rangeFilter, handSize = 2) {
+        if (!rangeFilter) {
+            const hand = [];
+            for (let i = 0; i < handSize; i++) hand.push(drawRandomCard(pool));
+            return hand;
+        }
+
+        const maxAttempts = 60;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            if (pool.length < handSize) break;
+
+            const chosenIdx = [];
+            const usedIdx = new Set();
+            while (chosenIdx.length < handSize) {
+                const idx = Math.floor(Math.random() * pool.length);
+                if (usedIdx.has(idx)) continue;
+                usedIdx.add(idx);
+                chosenIdx.push(idx);
+            }
+            const candidate = chosenIdx.map(i => pool[i]);
+
+            if (rangeFilter(candidate)) {
+                // Ta bort de valda korten ur poolen. Fallande indexordning så att
+                // swap-and-pop inte förskjuter index som ännu inte hanterats.
+                chosenIdx.sort((a, b) => b - a).forEach(idx => {
+                    pool[idx] = pool[pool.length - 1];
+                    pool.pop();
+                });
+                return candidate;
+            }
+        }
+        // Reservutväg: ta bara nästa handSize kort oavsett range, så vi aldrig kör fast.
+        const hand = [];
+        for (let i = 0; i < handSize; i++) hand.push(drawRandomCard(pool));
+        return hand;
+    }
+
+    /**
+     * @param {object[]} myHoleCards - spelarens hålkort. 2 st i Hold'em, 4 eller 5 i PLO.
+     * @param {function|null} opponentRangeFilter - filterfunktion (cards[] -> bool)
+     *   från getOpponentRangeFilter() (ranges.js), eller null för helt slumpmässiga
+     *   motståndarhänder. Fungerar mode-oberoende: samma parameter driver både
+     *   Hold'ems Chen-baserade ranges (handSize 2) och PLO:s poängheuristik
+     *   (handSize 4/5) - se ranges.js.
+     * @param {number} handSize - antal hålkort per spelare: 2 (Hold'em), 4 eller 5 (PLO).
+     */
+    function calculateTrueEquity(myHoleCards, boardCards, totalPlayers, iterations = 2222, opponentRangeFilter = null, handSize = 2) {
+        const validHoleCards = (myHoleCards || []).filter(c => c);
+        if (validHoleCards.length < handSize) return { pair: 0, set: 0, straight: 0, flush: 0, fh: 0, high: 0 };
+        const mapCard = (c) => ({ suit: c.suit, valueNum: parseInt(getCardValueNum(c.value)) });
+        let me = validHoleCards.map(mapCard);
+        let board = boardCards.filter(c => c !== null).map(mapCard);
+
+        let knownStrings = [...me, ...board].map(c => c.valueNum + c.suit);
+        let deck = [];
+        const suits = ['♠', '♥', '♣', '♦'];
+        for (let v = 2; v <= 14; v++) {
+            for (let s of suits) {
+                if (!knownStrings.includes(v + s)) deck.push({ valueNum: v, suit: s });
+            }
+        }
+
+        // Ackumulerar hjältens FAKTISKA vunna andel per kategori (0, 1, eller
+        // 1/N vid en N-vägs delning), istället för separata vinst-/delnings-
+        // räknare. Se motivering i kommentaren nedan vid tie-hanteringen.
+        let catEquitySum = { pair: 0, set: 0, straight: 0, flush: 0, fh: 0, high: 0 };
+        let opponentsCount = totalPlayers - 1;
+
+        for (let iter = 0; iter < iterations; iter++) {
+            let pool = [...deck];
+
+            // Komplettera bordet med slumpkort (helt oberoende av ev. range,
+            // eftersom bordet är gemensamt för alla och inte "tillhör" någon spelare).
+            let simBoard = [...board];
+            while (simBoard.length < 5) simBoard.push(drawRandomCard(pool));
+
+            let myScore = evaluateBestHand(me, simBoard, handSize);
+            let maxOpponentScore = 0;
+            // Antal motståndare som DELAR maxOpponentScore just nu - avgör hur
+            // många vägar potten ska delas om hjälten också når exakt den
+            // poängen (se nedan). Tidigare räknades varje delning som en fast
+            // 50/50-delning oavsett hur många spelare som faktiskt var med i
+            // delningen, vilket överskattade equity vid flerspelar-oavgjort
+            // (t.ex. "bordet spelar" med 3+ spelare kvar).
+            let tiedOpponentsAtMax = 0;
+
+            // Skyddsnät: handSize*totalPlayers + 5 bordkort kan i sällsynta fall
+            // (t.ex. PLO5 med väldigt många spelare) överstiga 52 kort totalt.
+            // Simulera då hellre färre motståndare den iterationen än att låta
+            // drawRandomCard() krascha på en tom pool.
+            let actualOpponents = Math.min(opponentsCount, Math.floor(pool.length / handSize));
+
+            for (let p = 0; p < actualOpponents; p++) {
+                let oppHole = drawOpponentHand(pool, opponentRangeFilter, handSize);
+                let oppScore = evaluateBestHand(oppHole, simBoard, handSize);
+
+                if (oppScore > maxOpponentScore) {
+                    maxOpponentScore = oppScore;
+                    tiedOpponentsAtMax = 1;
+                } else if (oppScore === maxOpponentScore) {
+                    tiedOpponentsAtMax++;
+                }
+            }
+
+            // Buckets bygger på poängintervallen från evaluate7CardHand:
+            // >=8.000.000 färgstege, >=7.000.000 fyrtal, >=6.000.000 kåk  -> visas i "KÅK"-raden (starkast tillgängliga rad)
+            // >=5.000.000 färg -> "FÄRG"    >=4.000.000 stege -> "STEGE"    >=3.000.000 triss -> "TRISS"
+            // >=1.000.000 ett par ELLER två par -> "PAR"
+            // <1.000.000 inget par alls (high card) -> räknas i totalen men INTE i "PAR", för att inte vilseleda
+            let cat = "high";
+            if (myScore >= 6000000) cat = "fh";       
+            else if (myScore >= 5000000) cat = "flush";   
+            else if (myScore >= 4000000) cat = "straight"; 
+            else if (myScore >= 3000000) cat = "set";      
+            else if (myScore >= 1000000) cat = "pair";
+
+            if (myScore > maxOpponentScore) {
+                catEquitySum[cat] += 1; // vinner hela potten
+            } else if (myScore === maxOpponentScore) {
+                // Potten delas mellan hjälten OCH alla motståndare som delar
+                // samma toppoäng - dvs (tiedOpponentsAtMax + 1) spelare totalt.
+                catEquitySum[cat] += 1 / (tiedOpponentsAtMax + 1);
+            }
+            // annars (myScore < maxOpponentScore): 0 - ingen vinst denna iteration.
+        }
+
+        return {
+            pair: (catEquitySum.pair / iterations) * 100,
+            set: (catEquitySum.set / iterations) * 100,
+            straight: (catEquitySum.straight / iterations) * 100,
+            flush: (catEquitySum.flush / iterations) * 100,
+            fh: (catEquitySum.fh / iterations) * 100,
+            high: (catEquitySum.high / iterations) * 100
+        };
+    }
+
+    /**
+     * Räknar ut spelarens TOTALA vinstchans (alla handkategorier summerade,
+     * inklusive "high") vid varje gata som redan nåtts: Preflop alltid,
+     * sedan Flop/Turn/River i den mån de korten är ifyllda. Gatorna kommer
+     * i ordning, så beräkningen stannar vid den första gata som inte är
+     * ifylld än.
+     *
+     * Antalet spelare i simuleringen minskar per gata enligt
+     * estimateActivePlayers() (playerEstimator.js) - dvs. equity-per-gata-
+     * grafen visar inte bara hur handen förändras med nya bordkort, utan
+     * också den statistiska effekten av att spelare antas ha lagt sig.
+     *
+     * Kör en egen, mindre Monte Carlo-simulering per gata (färre iterationer
+     * än huvudtabellens beräkning) eftersom detta bara är en översiktsgraf
+     * och inte behöver samma precision.
+     *
+     * Beror på: calculateTrueEquity() i samma fil, estimateActivePlayers()
+     * (playerEstimator.js).
+     *
+     * @param {object[]} holeCards - spelarens hålkort (2/4/5 st beroende på handSize).
+     * @param {number} baselinePlayerCount - antal spelare satt av användaren (innan ev. gatuuppskattning).
+     * @param {number} handSize - antal hålkort per spelare: 2 (Hold'em), 4 eller 5 (PLO).
+     * @returns {{label: string, value: number, players: number}[]} en punkt per nådd gata.
+     */
+    function calculateEquityByStreet(holeCards, f1, f2, f3, t1, r1, baselinePlayerCount, iterations = 800, opponentRangeFilter = null, handSize = 2) {
+        const validHoleCards = (holeCards || []).filter(c => c);
+        if (validHoleCards.length < handSize) return [];
+
+        const stages = [
+            { label: 'Preflop', key: 'preflop', board: [null, null, null, null, null], ready: true },
+            { label: 'Flop',    key: 'flop',    board: [f1, f2, f3, null, null],        ready: !!(f1 && f2 && f3) },
+            { label: 'Turn',    key: 'turn',    board: [f1, f2, f3, t1, null],          ready: !!(f1 && f2 && f3 && t1) },
+            { label: 'River',   key: 'river',   board: [f1, f2, f3, t1, r1],            ready: !!(f1 && f2 && f3 && t1 && r1) }
+        ];
+
+        let points = [];
+        for (let stage of stages) {
+            if (!stage.ready) break;
+            let playersAtStage = estimateActivePlayers(baselinePlayerCount, stage.key);
+            let eq = calculateTrueEquity(validHoleCards, stage.board, playersAtStage, iterations, opponentRangeFilter, handSize);
+            let total = eq.pair + eq.set + eq.straight + eq.flush + eq.fh + eq.high;
+            points.push({ label: stage.label, value: total, players: playersAtStage });
+        }
+        return points;
+    }
+
+
+</script>
+<script>
+/* ===================================================================
+   equityChart.js
+   Ritar en liten SVG-linjegraf som visar hur spelarens totala
+   vinstchans (equity) förändras genom gatorna: Preflop -> Flop ->
+   Turn -> River.
+
+   Ren rendering utan egen beräkningslogik: tar emot en färdig lista
+   med {label, value, players?}-punkter (se calculateEquityByStreet()
+   i equityEngine.js) och ritar dem i en container-div. "players" är
+   valfritt - om det finns visas det som "(Xp)" bredvid gate-namnet.
+   =================================================================== */
+
+
+function renderEquityChart(containerId, points) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!points || points.length === 0) {
+        container.innerHTML = `<div class="equity-chart-empty">${t('equity_chart_empty')}</div>`;
+        return;
+    }
+
+    // Mät containerns faktiska bredd så grafen fyller ut hela bredden den fått
+    // tilldelad i layouten, istället för att skalas med bevarad aspect ratio
+    // (vilket annars ger tomma marginaler eller distorderad text).
+    const width = container.clientWidth > 0 ? container.clientWidth : 400;
+    const height = 62;
+    const padX = 20;
+    const padTop = 14;
+    const padBottom = 16;
+    const plotWidth = width - padX * 2;
+    const plotHeight = height - padTop - padBottom;
+
+    const n = points.length;
+    const xStep = n > 1 ? plotWidth / (n - 1) : 0;
+    const xFor = (i) => padX + (n > 1 ? i * xStep : plotWidth / 2);
+    const yFor = (val) => {
+        const clamped = Math.max(0, Math.min(100, val));
+        return padTop + plotHeight - (clamped / 100) * plotHeight;
+    };
+
+    // Hjälplinjer vid 25/50/75% för att göra trenden lättare att läsa av
+    const gridLines = [25, 50, 75].map(v => (
+        `<line x1="${padX}" y1="${yFor(v)}" x2="${width - padX}" y2="${yFor(v)}" ` +
+        `stroke="#e2e8f0" stroke-width="1" stroke-dasharray="2,2"></line>`
+    )).join('');
+
+    const linePoints = points.map((p, i) => `${xFor(i)},${yFor(p.value)}`).join(' ');
+
+    // Färgen på sista punkten/linjen visar om trenden är på väg upp eller ner
+    const trendUp = n > 1 ? points[n - 1].value >= points[0].value : true;
+    const lineColor = trendUp ? '#16a34a' : '#dc2626';
+
+    const markers = points.map((p, i) => {
+        const labelText = (typeof p.players === 'number') ? `${p.label} (${p.players}p)` : p.label;
+        return (
+            `<circle cx="${xFor(i)}" cy="${yFor(p.value)}" r="3.5" fill="${lineColor}" stroke="#fff" stroke-width="1.5"></circle>` +
+            `<text x="${xFor(i)}" y="${yFor(p.value) - 7}" text-anchor="middle" font-size="10" font-weight="bold" fill="#1e293b">${p.value.toFixed(1)}%</text>` +
+            `<text x="${xFor(i)}" y="${height - 5}" text-anchor="middle" font-size="9" fill="#64748b">${labelText}</text>`
+        );
+    }).join('');
+
+    container.innerHTML =
+        `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="display:block;">` +
+            gridLines +
+            `<polyline points="${linePoints}" fill="none" stroke="${lineColor}" stroke-width="2"></polyline>` +
+            markers +
+        `</svg>`;
+}
+
+</script>
+<script>
+/* ===================================================================
+   potOdds.js
+   Pott-odds-kalkylator: jämför "equity som krävs för att synad insats
+   ska löna sig" mot den simulerade equity som equityEngine.js redan
+   har räknat fram för aktuell hand.
+
+   potOddsState.lastTotalEquity uppdateras av ui.js varje gång
+   updateOddsEngine() körs (dvs. varje gång ett kort ändras), så att
+   pott-odds-rutan alltid jämför mot senaste beräknade equity utan att
+   behöva räkna om Monte Carlo-simuleringen själv.
+
+   potOddsState (ett objekt, inte en bar `let`) håller lastTotalEquity
+   samlat på ett ställe tillsammans med denna kommentar om vad den är
+   till för, så det är tydligt för ui.js att detta är delat, muterbart
+   state och inte en lokal variabel.
+   =================================================================== */
+
+
+const potOddsState = { lastTotalEquity: 0 };
+
+/**
+ * Ren beräkning, utan DOM-beroende.
+ * @param {number} potSize   - Potten INNAN din insats/syn (redan satsat av alla, exkl. den insats du ska ta ställning till).
+ * @param {number} betToCall - Beloppet du måste lägga in för att syna.
+ * @returns {{equityNeeded: number, potOddsRatio: number, totalPotIfCalled: number} | null}
+ */
+function calculatePotOdds(potSize, betToCall) {
+    if (!Number.isFinite(potSize) || !Number.isFinite(betToCall)) return null;
+    if (potSize < 0 || betToCall <= 0) return null;
+
+    const totalPotIfCalled = potSize + betToCall;
+    const equityNeeded = (betToCall / totalPotIfCalled) * 100;
+    const potOddsRatio = potSize / betToCall;
+
+    return { equityNeeded, potOddsRatio, totalPotIfCalled };
+}
+
+/**
+ * Läser input-fälten, räknar ut pott-odds och skriver resultatet i UI:t,
+ * samt jämför mot potOddsState.lastTotalEquity (den simulerade equityn
+ * för handen).
+ */
+function updatePotOddsUI() {
+    const potInput = document.getElementById('potSizeInput');
+    const betInput = document.getElementById('betToCallInput');
+    const ratioEl = document.getElementById('potOddsRatio');
+    const equityNeededEl = document.getElementById('potOddsEquityNeeded');
+    const yourEquityEl = document.getElementById('potOddsYourEquity');
+    const verdictEl = document.getElementById('potOddsVerdict');
+    const explainerEl = document.getElementById('potOddsExplainer');
+
+    if (!potInput || !betInput || !ratioEl || !equityNeededEl || !yourEquityEl || !verdictEl) return;
+
+    yourEquityEl.textContent = potOddsState.lastTotalEquity.toFixed(1) + "%";
+
+    const potSize = parseFloat(potInput.value);
+    const betToCall = parseFloat(betInput.value);
+    const result = calculatePotOdds(potSize, betToCall);
+
+    if (!result) {
+        ratioEl.textContent = "-";
+        equityNeededEl.textContent = "-";
+        verdictEl.textContent = t('pot_odds_verdict_fill');
+        verdictEl.className = "pot-odds-verdict";
+        if (explainerEl) explainerEl.innerHTML = t('pot_odds_explainer_default');
+        return;
+    }
+
+    ratioEl.textContent = result.potOddsRatio.toFixed(2) + " : 1";
+    equityNeededEl.textContent = result.equityNeeded.toFixed(1) + "%";
+
+    // Visar SAMMA uträkning som calculatePotOdds() gjorde, fast med de faktiska
+    // talen inskrivna - så man kan följa matematiken steg för steg live, precis
+    // som den ser ut just nu utifrån det du fyllt i. Tre rader (i stigande
+    // förenkling) för att göra den lättare att läsa än en lång sammanhängande mening.
+    if (explainerEl) {
+        explainerEl.innerHTML =
+            `<div class="pot-odds-explainer-line">${betToCall} ÷ (${potSize} + ${betToCall}) × 100</div>` +
+            `<div class="pot-odds-explainer-line">= ${betToCall} ÷ ${result.totalPotIfCalled} × 100</div>` +
+            `<div class="pot-odds-explainer-line pot-odds-explainer-result">= ${result.equityNeeded.toFixed(1)}% ${t('pot_odds_explainer_result')}</div>`;
+    }
+
+    const margin = potOddsState.lastTotalEquity - result.equityNeeded;
+    if (margin >= 0) {
+        verdictEl.textContent = t('pot_odds_verdict_good', { margin: margin.toFixed(1) });
+        verdictEl.className = "pot-odds-verdict verdict-good";
+    } else {
+        verdictEl.textContent = t('pot_odds_verdict_bad', { margin: margin.toFixed(1) });
+        verdictEl.className = "pot-odds-verdict verdict-bad";
+    }
+}
+
+// Räkna om pott-odds-verdikten på nytt språk direkt vid språkbyte, precis
+// som tidigare (se i18n.js för varför detta sker via en lyssnare istället
+// för att anropa updatePotOddsUI direkt från setLanguage() i i18n.js).
+onLanguageChange(updatePotOddsUI);
+
+// updatePotOddsUI() anropas direkt från oninput-attribut i HTML:en.
+window.updatePotOddsUI = updatePotOddsUI;
+
+</script>
+<script>
+/* ===================================================================
+   helpGuide.js
+   Öppnar/stänger info-modalerna (Hjälp/användarhandledning och Om).
+   Själva textinnehållet ligger som statisk HTML direkt i sidan
+   (#helpModalOverlay / #aboutModalOverlay) eftersom det inte beror på
+   något state - det här är bara visa/dölj-logiken.
+
+   Inga beroenden.
+   =================================================================== */
+
+function openHelpModal() {
+    const overlay = document.getElementById('helpModalOverlay');
+    if (overlay) overlay.classList.add('open');
+}
+
+function closeHelpModal() {
+    const overlay = document.getElementById('helpModalOverlay');
+    if (overlay) overlay.classList.remove('open');
+}
+
+function openAboutModal() {
+    const overlay = document.getElementById('aboutModalOverlay');
+    if (overlay) overlay.classList.add('open');
+}
+
+function closeAboutModal() {
+    const overlay = document.getElementById('aboutModalOverlay');
+    if (overlay) overlay.classList.remove('open');
+}
+
+// Stäng med Escape-tangenten, oavsett vilken av modalerna som är öppen
+// eller var i dokumentet fokus ligger.
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeHelpModal();
+        closeAboutModal();
+    }
+});
+
+// Alla fyra anropas direkt från inline onclick-attribut i HTML:en.
+window.openHelpModal = openHelpModal;
+window.closeHelpModal = closeHelpModal;
+window.openAboutModal = openAboutModal;
+window.closeAboutModal = closeAboutModal;
+
+</script>
+<script>
+/* ===================================================================
+   ui.js
+   Applikationens "kontroller": state (valda kort, spelarantal osv.),
+   alla event-lyssnare/knapp-callbacks, samt updateOddsEngine() som
+   läser state, anropar equityEngine.js/handEvaluator.js och skriver
+   resultatet till DOM:en.
+   =================================================================== */
+
+
+    // handCards har alltid 5 platser oavsett läge - i Hold'em används bara
+    // index 0-1, i 4-korts PLO index 0-3, i 5-korts PLO alla fem. Det gör att
+    // vi slipper ombygga arrayen (och DOM-slottarna kan alltid adresseras med
+    // samma id:n slotH0..slotH4) när användaren byter spelläge.
+    let handCards = [null, null, null, null, null];
+    let flopCards = [null, null, null];
+    let turnCards = [null];
+    let riverCards = [null];
+
+    // 'holdem' = Texas Hold'em (2 hålkort, fritt val av 0/1/2 i den färdiga handen).
+    // 'plo4'/'plo5' = Pot Limit Omaha (4 resp. 5 hålkort, MÅSTE använda exakt 2
+    // hålkort + exakt 3 bordkort - se evaluateOmahaHand() i handEvaluator.js).
+    let gameMode = 'holdem';
+    const HAND_SIZE_BY_MODE = { holdem: 2, plo4: 4, plo5: 5 };
+    function getHandSize() { return HAND_SIZE_BY_MODE[gameMode] || 2; }
+
+    /**
+     * Max antal spelare som faktiskt får plats i en 52-korts kortlek givet
+     * hur många hålkort varje spelare har. handSize*antal spelare + 5 bordkort
+     * får aldrig överstiga 52 - annars blir det matematiskt omöjligt att dela
+     * ut (och simuleringen skulle behöva hitta på kort som inte finns). Enda
+     * läget där detta faktiskt begränsar under appens tak på 10 är PLO5
+     * (5*10+5 = 55 > 52), där taket istället blir 9 (5*9+5 = 50 ≤ 52).
+     */
+    function getMaxPlayers() {
+        return Math.min(10, Math.floor((52 - 5) / getHandSize()));
+    }
+
+    let activeModule = 'H'; 
+    let activeIndex = 0;
+    let selectedValue = null;
+    let selectedSuit = null;
+    let currentPosition = 'BTN';
+    let currentOpponentRange = 'random';
+    // Spelarantalet såsom ANVÄNDAREN själv ställt in det via +/- eller direkt
+    // inmatning. Fältet #playerCountInput kan visa ett annat (lägre) tal
+    // under handen - se updateOddsEngine() - men baslinjen ändras aldrig
+    // automatiskt, och "Rensa Allt" återställer alltid fältet till detta tal.
+    let baselinePlayerCount = 6;
+    let lastEquityHistory = [];
+    // Håller reda på den schemalagda (setTimeout) Monte Carlo-körningen, så en
+    // ny kortändring kan avbryta en påbörjad väntande beräkning istället för
+    // att båda körs (se updateOddsEngine).
+    let oddsEngineCalcTimer = null;
+
+    /**
+     * Cache:ade DOM-referenser för oddsmotor-tabellen och relaterade element.
+     * Dessa element byter aldrig identitet under sidans livstid (de skapas en
+     * gång av HTML:en och deras textContent/className ändras bara), så att
+     * slå upp dem här EN GÅNG - istället för via document.getElementById() vid
+     * VARJE enskild kortändring i updateOddsEngine() (som annars gjorde ~38
+     * DOM-sökningar per tangenttryckning) - tar bort onödigt upprepat
+     * DOM-arbete från den synkrona delen av varenda uppdatering.
+     */
+    const ODDS_DOM = {
+        pairType: document.getElementById('pairType'),
+        pairFracFlop: document.getElementById('pairFracFlop'),
+        pairPercFlop: document.getElementById('pairPercFlop'),
+        pairFracTurn: document.getElementById('pairFracTurn'),
+        pairPercTurn: document.getElementById('pairPercTurn'),
+        pairFracRiver: document.getElementById('pairFracRiver'),
+        pairPercRiver: document.getElementById('pairPercRiver'),
+
+        setType: document.getElementById('setType'),
+        setFracFlop: document.getElementById('setFracFlop'),
+        setPercFlop: document.getElementById('setPercFlop'),
+        setFracTurn: document.getElementById('setFracTurn'),
+        setPercTurn: document.getElementById('setPercTurn'),
+        setFracRiver: document.getElementById('setFracRiver'),
+        setPercRiver: document.getElementById('setPercRiver'),
+
+        oddsTypeStraight: document.getElementById('oddsTypeStraight'),
+        straightFracFlop: document.getElementById('straightFracFlop'),
+        straightPercFlop: document.getElementById('straightPercFlop'),
+        straightFracTurn: document.getElementById('straightFracTurn'),
+        straightPercTurn: document.getElementById('straightPercTurn'),
+        straightFracRiver: document.getElementById('straightFracRiver'),
+        straightPercRiver: document.getElementById('straightPercRiver'),
+
+        oddsTypeFlush: document.getElementById('oddsTypeFlush'),
+        flushFracFlop: document.getElementById('flushFracFlop'),
+        flushPercFlop: document.getElementById('flushPercFlop'),
+        flushFracTurn: document.getElementById('flushFracTurn'),
+        flushPercTurn: document.getElementById('flushPercTurn'),
+        flushFracRiver: document.getElementById('flushFracRiver'),
+        flushPercRiver: document.getElementById('flushPercRiver'),
+
+        oddsTypeFullHouse: document.getElementById('oddsTypeFullHouse'),
+        fhFracFlop: document.getElementById('fhFracFlop'),
+        fhPercFlop: document.getElementById('fhPercFlop'),
+        fhFracTurn: document.getElementById('fhFracTurn'),
+        fhPercTurn: document.getElementById('fhPercTurn'),
+        fhFracRiver: document.getElementById('fhFracRiver'),
+        fhPercRiver: document.getElementById('fhPercRiver'),
+
+        pairPlayerFormula: document.getElementById('pairPlayerFormula'),
+        pairPlayerWin: document.getElementById('pairPlayerWin'),
+        setPlayerFormula: document.getElementById('setPlayerFormula'),
+        setPlayerWin: document.getElementById('setPlayerWin'),
+        straightPlayerFormula: document.getElementById('straightPlayerFormula'),
+        straightPlayerWin: document.getElementById('straightPlayerWin'),
+        flushPlayerFormula: document.getElementById('flushPlayerFormula'),
+        flushPlayerWin: document.getElementById('flushPlayerWin'),
+        fhPlayerFormula: document.getElementById('fhPlayerFormula'),
+        fhPlayerWin: document.getElementById('fhPlayerWin'),
+
+        totalWinChance: document.getElementById('totalWinChance'),
+        playerCountInput: document.getElementById('playerCountInput'),
+        playerCountNote: document.getElementById('playerCountNote'),
+
+        advFold: document.getElementById('advFold'),
+        advCall: document.getElementById('advCall'),
+        advRaise: document.getElementById('advRaise'),
+
+        calcBadge: document.getElementById('oddsEngineCalcBadge')
+    };
+
+    const suits = ['♠', '♥', '♣', '♦'];
+    const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+
+    const suitKeyMap = { 's': '♠', 'h': '♥', 'c': '♣', 'd': '♦' };
+    const valueKeyMap = {
+        '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '7': '7', '8': '8', '9': '9', 't': '10',
+        'j': 'J', 'q': 'Q', 'k': 'K', 'a': 'A'
+    };
+
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT') return;
+        let key = e.key.toLowerCase();
+
+        if (suitKeyMap[key]) {
+            selectedSuit = suitKeyMap[key];
+            highlightSelectedButton('.btn-suit', 'data-suit', selectedSuit);
+            checkAndInsertCard();
+        } else if (valueKeyMap[key]) {
+            selectedValue = valueKeyMap[key];
+            highlightSelectedButton('.btn-value', 'data-value', selectedValue);
+            checkAndInsertCard();
+        }
+    });
+
+    function highlightSelectedButton(selector, attribute, value) {
+        let currentTargetModuleId = activeModule === 'H' ? 'handModule' : (activeModule === 'F' ? 'flopModule' : (activeModule === 'T' ? 'turnModule' : 'riverModule'));
+        document.querySelectorAll(`#${currentTargetModuleId} ${selector}`).forEach(b => {
+            if (b.getAttribute(attribute) === value) {
+                b.classList.add('selected');
+            } else {
+                b.classList.remove('selected');
+            }
+        });
+    }
+
+    function setPlayerPosition(pos) {
+        currentPosition = pos;
+        document.querySelectorAll('.btn-pos').forEach(b => {
+            if(b.getAttribute('data-pos') === pos) b.classList.add('selected');
+            else b.classList.remove('selected');
+        });
+        updateOddsEngine();
+    }
+
+    // OBS: egen klass ".btn-range" (utöver den delade ".btn-pos"-stylingen) så att
+    // detta querySelectorAll inte råkar nollställa/markera positions-knapparna också.
+    function setOpponentRange(rangeKey) {
+        currentOpponentRange = rangeKey;
+        document.querySelectorAll('.btn-range').forEach(b => {
+            if (b.getAttribute('data-range') === rangeKey) b.classList.add('selected');
+            else b.classList.remove('selected');
+        });
+        updateOddsEngine();
+    }
+
+    /**
+     * Byter spelläge (Hold'em / 4-korts PLO / 5-korts PLO). Rensar alltid
+     * handen helt eftersom antalet hålkort skiljer sig mellan lägena - att
+     * försöka bevara delar av en Hold'em-hand in i PLO (eller tvärtom) skulle
+     * bara skapa förvirrande halvifyllda tillstånd.
+     */
+    function setGameMode(mode) {
+        if (!HAND_SIZE_BY_MODE[mode]) return;
+        gameMode = mode;
+        const handSize = getHandSize();
+
+        document.querySelectorAll('.btn-gamemode').forEach(b => {
+            if (b.getAttribute('data-mode') === mode) b.classList.add('selected');
+            else b.classList.remove('selected');
+        });
+
+        // Visa exakt handSize hålkorts-slottar (2/4/5), dölj resten.
+        for (let i = 0; i < 5; i++) {
+            const wrapper = document.getElementById(`slotWrapH${i}`);
+            if (wrapper) wrapper.style.display = (i < handSize) ? '' : 'none';
+        }
+
+        // OBS: Motståndar-ranges (Loose/Normal/Tight) fungerar i BÅDA lägena -
+        // getOpponentRangeFilter() (ranges.js) väljer automatiskt Chen-formeln
+        // för Hold'em eller PLO:s poängheuristik utifrån handSize. Knapparna
+        // ska alltså inte inaktiveras här - bara en kort informationstext om
+        // att modellen skiljer sig åt i PLO.
+        const rangeInfoNote = document.getElementById('rangeInfoNote');
+        if (rangeInfoNote) rangeInfoNote.style.display = (mode !== 'holdem') ? '' : 'none';
+
+        // 5*antal spelare + 5 bordkort får aldrig överstiga 52 kort - i PLO5
+        // sätter det taket till 9 spelare istället för appens annars fasta 10
+        // (se getMaxPlayers). Klipp ner baslinjen om den redan var satt högre.
+        const maxPlayers = getMaxPlayers();
+        const playerCountInputEl = document.getElementById('playerCountInput');
+        if (playerCountInputEl) playerCountInputEl.max = maxPlayers;
+        if (baselinePlayerCount > maxPlayers) {
+            baselinePlayerCount = maxPlayers;
+            if (playerCountInputEl) playerCountInputEl.value = maxPlayers;
+        }
+
+        clearAllCards();
+    }
+
+    document.querySelectorAll('.input-module').forEach(moduleEl => {
+        if (moduleEl.id === 'playersModule') return;
+        
+        let modType = 'H';
+        if (moduleEl.id === 'flopModule') modType = 'F';
+        if (moduleEl.id === 'turnModule') modType = 'T';
+        if (moduleEl.id === 'riverModule') modType = 'R';
+        
+        moduleEl.querySelectorAll('.btn-suit').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (activeModule !== modType) return;
+                moduleEl.querySelectorAll('.btn-suit').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedSuit = btn.getAttribute('data-suit');
+                checkAndInsertCard();
+            });
+        });
+
+        moduleEl.querySelectorAll('.btn-value').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (activeModule !== modType) return;
+                moduleEl.querySelectorAll('.btn-value').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedValue = btn.getAttribute('data-value');
+                checkAndInsertCard();
+            });
+        });
+    });
+
+    function adjustPlayers(amount) {
+        // Justera BASLINJEN (spelarantalet användaren själv ställt in), inte
+        // vad som just nu råkar visas i fältet - det kan redan ha skrivits
+        // över med en statistisk gatu-uppskattning (se updateOddsEngine).
+        baselinePlayerCount = Math.max(2, Math.min(getMaxPlayers(), baselinePlayerCount + amount));
+        document.getElementById('playerCountInput').value = baselinePlayerCount;
+        updateOddsEngine();
+    }
+
+    function validateAndUdpatePlayers() {
+        // En manuell redigering av fältet tolkas alltid som en ny baslinje
+        // (dvs. "det är faktiskt så här många som sitter vid bordet").
+        const input = document.getElementById('playerCountInput');
+        let val = parseInt(input.value, 10);
+        const maxPlayers = getMaxPlayers();
+        if (isNaN(val) || val < 2) val = 2;
+        if (val > maxPlayers) val = maxPlayers;
+        baselinePlayerCount = val;
+        input.value = val;
+
+        updateOddsEngine();
+    }
+
+    function setActiveSlot(moduleType, index) {
+        activeModule = moduleType;
+        activeIndex = index;
+        
+        document.querySelectorAll('.card-slot').forEach(s => s.classList.remove('active'));
+        const activeSlot = document.getElementById(`slot${moduleType}${index}`);
+        if (activeSlot) activeSlot.classList.add('active');
+    }
+
+    function checkAndInsertCard() {
+        if (selectedValue && selectedSuit) {
+            if (isCardDuplicate(selectedValue, selectedSuit, activeModule, activeIndex)) {
+                alert(`Kortet ${selectedValue}${selectedSuit} används redan! Välj ett annat.`);
+                let targetModId = activeModule === 'H' ? 'handModule' : (activeModule === 'F' ? 'flopModule' : (activeModule === 'T' ? 'turnModule' : 'riverModule'));
+                document.querySelectorAll(`#${targetModId} .btn-suit, #${targetModId} .btn-value`).forEach(b => b.classList.remove('selected'));
+                selectedValue = null; 
+                selectedSuit = null;
+                return;
+            }
+
+            const cardObj = { value: selectedValue, suit: selectedSuit };
+            insertCardIntoStateAndUI(activeModule, activeIndex, cardObj);
+
+            autoAdvanceFocus(activeModule, activeIndex);
+            updateOddsEngine();
+
+            document.querySelectorAll('.btn-suit, .btn-value').forEach(b => b.classList.remove('selected'));
+            selectedValue = null; 
+            selectedSuit = null;
+        }
+    }
+
+    function isCardDuplicate(val, sut, ignoreMod, ignoreIdx) {
+        const dupHand = handCards.some((c, idx) => c && !(ignoreMod === 'H' && ignoreIdx === idx) && c.value === val && c.suit === sut);
+        const dupFlop = flopCards.some((c, idx) => c && !(ignoreMod === 'F' && ignoreIdx === idx) && c.value === val && c.suit === sut);
+        const dupTurn = turnCards.some((c, idx) => c && !(ignoreMod === 'T' && ignoreIdx === idx) && c.value === val && c.suit === sut);
+        const dupRiver = riverCards.some((c, idx) => c && !(ignoreMod === 'R' && ignoreIdx === idx) && c.value === val && c.suit === sut);
+        return (dupHand || dupFlop || dupTurn || dupRiver);
+    }
+
+    function insertCardIntoStateAndUI(modType, idx, cardObj) {
+        if (modType === 'H') handCards[idx] = cardObj;
+        if (modType === 'F') flopCards[idx] = cardObj;
+        if (modType === 'T') turnCards[idx] = cardObj;
+        if (modType === 'R') riverCards[idx] = cardObj;
+
+        const slot = document.getElementById(`slot${modType}${idx}`);
+        if (slot) {
+            const isRed = (cardObj.suit === '♥' || cardObj.suit === '♦');
+            slot.innerHTML = `<span class="${isRed ? 'red' : 'black'}">${cardObj.value}${cardObj.suit}</span>`;
+            slot.classList.add('filled');
+        }
+    }
+
+    function randomizeModule(modType) {
+        let size = modType === 'H' ? getHandSize() : (modType === 'F' ? 3 : 1);
+        
+        for (let i = 0; i < size; i++) {
+            let attempts = 0;
+            while (attempts < 200) {
+                let randomSuit = suits[Math.floor(Math.random() * suits.length)];
+                let randomValue = values[Math.floor(Math.random() * values.length)];
+                
+                if (!isCardDuplicate(randomValue, randomSuit, modType, i)) {
+                    let cardObj = { value: randomValue, suit: randomSuit };
+                    insertCardIntoStateAndUI(modType, i, cardObj);
+                    break;
+                }
+                attempts++;
+            }
+        }
+        
+        updateOddsEngine();
+    }
+
+    function autoAdvanceFocus(currentModule, currentIndex) {
+        if (currentModule === 'H') {
+            const handSize = getHandSize();
+            if (currentIndex + 1 < handSize) {
+                setActiveSlot('H', currentIndex + 1);
+            } else {
+                setActiveSlot('F', 0);
+            }
+        } else if (currentModule === 'F' && currentIndex === 0) {
+            setActiveSlot('F', 1);
+        } else if (currentModule === 'F' && currentIndex === 1) {
+            setActiveSlot('F', 2);
+        } else if (currentModule === 'F' && currentIndex === 2) {
+            setActiveSlot('T', 0);
+        } else if (currentModule === 'T' && currentIndex === 0) {
+            setActiveSlot('R', 0);
+        }
+    }
+
+    function clearModule(type) {
+        if (type === 'H') {
+            handCards = [null, null, null, null, null];
+            for (let i = 0; i < 5; i++) {
+                const slot = document.getElementById(`slotH${i}`);
+                if (slot) { slot.innerHTML = '-'; slot.classList.remove('filled'); }
+            }
+            setActiveSlot('H', 0);
+        } else if (type === 'F') {
+            flopCards = [null, null, null];
+            document.getElementById('slotF0').innerHTML = '-'; document.getElementById('slotF0').classList.remove('filled');
+            document.getElementById('slotF1').innerHTML = '-'; document.getElementById('slotF1').classList.remove('filled');
+            document.getElementById('slotF2').innerHTML = '-'; document.getElementById('slotF2').classList.remove('filled');
+            setActiveSlot('F', 0);
+        } else if (type === 'T') {
+            turnCards = [null];
+            document.getElementById('slotT0').innerHTML = '-'; document.getElementById('slotT0').classList.remove('filled');
+            setActiveSlot('T', 0);
+        } else {
+            riverCards = [null];
+            document.getElementById('slotR0').innerHTML = '-'; document.getElementById('slotR0').classList.remove('filled');
+            setActiveSlot('R', 0);
+        }
+        updateOddsEngine();
+    }
+
+    function clearAllCards() {
+        handCards = [null, null, null, null, null];
+        flopCards = [null, null, null];
+        turnCards = [null];
+        riverCards = [null];
+        
+        document.querySelectorAll('.card-slot').forEach(slot => {
+            slot.innerHTML = '-';
+            slot.classList.remove('filled');
+        });
+        
+        document.querySelectorAll('.btn-suit, .btn-value').forEach(b => b.classList.remove('selected'));
+        selectedValue = null; selectedSuit = null;
+
+        // Återställ pott-odds-kalkylatorn till sina standardvärden (100/25),
+        // så den inte visar kvarblivna siffror från en tidigare hand.
+        // (updateOddsEngine() nedan anropar redan updatePotOddsUI() åt oss.)
+        const potSizeInputEl = document.getElementById('potSizeInput');
+        const betToCallInputEl = document.getElementById('betToCallInput');
+        if (potSizeInputEl) potSizeInputEl.value = 100;
+        if (betToCallInputEl) betToCallInputEl.value = 25;
+
+        setActiveSlot('H', 0);
+        // OBS: eftersom inga bordkort finns kvar landar updateOddsEngine() på
+        // gatan "preflop", vilket gör att "Antal Spelare"-fältet automatiskt
+        // återställs till baslinjen (baselinePlayerCount) - se updateOddsEngine().
+        updateOddsEngine();
+    }
+
+
+    function updateOddsEngine() {
+        const pairType = ODDS_DOM.pairType; const pairFracFlop = ODDS_DOM.pairFracFlop; const pairPercFlop = ODDS_DOM.pairPercFlop;
+        const pairFracTurn = ODDS_DOM.pairFracTurn; const pairPercTurn = ODDS_DOM.pairPercTurn; const pairFracRiver = ODDS_DOM.pairFracRiver; const pairPercRiver = ODDS_DOM.pairPercRiver;
+
+        const setType = ODDS_DOM.setType; const setFracFlop = ODDS_DOM.setFracFlop; const setPercFlop = ODDS_DOM.setPercFlop;
+        const setFracTurn = ODDS_DOM.setFracTurn; const setPercTurn = ODDS_DOM.setPercTurn; const setFracRiver = ODDS_DOM.setFracRiver; const setPercRiver = ODDS_DOM.setPercRiver;
+
+        const typeBoxStraight = ODDS_DOM.oddsTypeStraight; const straightFracFlop = ODDS_DOM.straightFracFlop; const straightPercFlop = ODDS_DOM.straightPercFlop;
+        const straightFracTurn = ODDS_DOM.straightFracTurn; const straightPercTurn = ODDS_DOM.straightPercTurn; const straightFracRiver = ODDS_DOM.straightFracRiver; const straightPercRiver = ODDS_DOM.straightPercRiver;
+        
+        const typeBoxFlush = ODDS_DOM.oddsTypeFlush; const flushFracFlop = ODDS_DOM.flushFracFlop; const flushPercFlop = ODDS_DOM.flushPercFlop;
+        const flushFracTurn = ODDS_DOM.flushFracTurn; const flushPercTurn = ODDS_DOM.flushPercTurn; const flushFracRiver = ODDS_DOM.flushFracRiver; const flushPercRiver = ODDS_DOM.flushPercRiver;
+        
+        const typeBoxFullHouse = ODDS_DOM.oddsTypeFullHouse; const fhFracFlop = ODDS_DOM.fhFracFlop; const fhPercFlop = ODDS_DOM.fhPercFlop;
+        const fhFracTurn = ODDS_DOM.fhFracTurn; const fhPercTurn = ODDS_DOM.fhPercTurn; const fhFracRiver = ODDS_DOM.fhFracRiver; const fhPercRiver = ODDS_DOM.fhPercRiver;
+
+        const pairPlayerFormula = ODDS_DOM.pairPlayerFormula; const pairPlayerWin = ODDS_DOM.pairPlayerWin;
+        const setPlayerFormula = ODDS_DOM.setPlayerFormula; const setPlayerWin = ODDS_DOM.setPlayerWin;
+        const straightPlayerFormula = ODDS_DOM.straightPlayerFormula; const straightPlayerWin = ODDS_DOM.straightPlayerWin;
+        const flushPlayerFormula = ODDS_DOM.flushPlayerFormula; const flushPlayerWin = ODDS_DOM.flushPlayerWin;
+        const fhPlayerFormula = ODDS_DOM.fhPlayerFormula; const fhPlayerWin = ODDS_DOM.fhPlayerWin;
+        const totalWinChance = ODDS_DOM.totalWinChance;
+        const playerCountInputEl = ODDS_DOM.playerCountInput;
+        const playerCountNote = ODDS_DOM.playerCountNote;
+
+        const advFold = ODDS_DOM.advFold;
+        const advCall = ODDS_DOM.advCall;
+        const advRaise = ODDS_DOM.advRaise;
+
+        advFold.className = "advisor-box";
+        advCall.className = "advisor-box";
+        advRaise.className = "advisor-box";
+
+        const c1 = handCards[0]; const c2 = handCards[1];
+        const f1 = flopCards[0]; const f2 = flopCards[1]; const f3 = flopCards[2];
+        const t1 = turnCards[0]; const r1 = riverCards[0];
+
+        // handSize/holeCardsActive styr Monte Carlo-motorn (equityEngine.js) och
+        // gäller för alla lägen. c1/c2 ovan används bara av den exakta
+        // kombinatorik-tabellen längre ner, som ENDAST är giltig i Hold'em
+        // (se "if (gameMode === 'holdem')" nedan).
+        const handSize = getHandSize();
+        const holeCardsActive = handCards.slice(0, handSize).filter(c => c);
+
+        const flopReady = (f1 && f2 && f3);
+        const turnReady = (flopReady && t1);
+        const riverReady = (turnReady && r1);
+
+        // --- STATISTISKT UPPSKATTAT SPELARANTAL PER GATA ---
+        // Baslinjen (satt av användaren) minskas ju längre handen gått, för att
+        // spegla att spelare statistiskt sett faller bort mellan gatorna. Detta
+        // PÅVERKAR equity-beräkningen (N nedan) men ändrar aldrig baslinjen -
+        // "Rensa Allt" och tomt-hålkort-läget återställer alltid till baslinjen.
+        const currentStreetKey = getCurrentStreetKey(flopReady, turnReady, riverReady);
+        const N = estimateActivePlayers(baselinePlayerCount, currentStreetKey);
+
+        if (playerCountInputEl) playerCountInputEl.value = N;
+        if (playerCountNote) {
+            const STREET_LABELS = { preflop: t('street_preflop'), flop: t('street_flop'), turn: t('street_turn'), river: t('street_river') };
+            playerCountNote.textContent = (N < baselinePlayerCount)
+                ? t('player_count_note', { baseline: baselinePlayerCount, n: N, street: STREET_LABELS[currentStreetKey] })
+                : '';
+        }
+
+        if (holeCardsActive.length < handSize) {
+            if (oddsEngineCalcTimer !== null) { clearTimeout(oddsEngineCalcTimer); oddsEngineCalcTimer = null; }
+            if (ODDS_DOM.calcBadge) ODDS_DOM.calcBadge.style.display = 'none';
+            document.querySelectorAll('.odds-module .odds-box').forEach(b => b.textContent = '-');
+            if (totalWinChance) totalWinChance.textContent = '-';
+            potOddsState.lastTotalEquity = 0;
+            updatePotOddsUI();
+            renderEquityChart('equityChartContainer', []);
+            return;
+        }
+
+      if (gameMode === 'holdem') {
+        const isPocket = (c1.value === c2.value);
+        
+        let allCardsUpToFlop = [c1, c2, f1, f2, f3].filter(c => c !== null);
+        let allCardsUpToTurn = [c1, c2, f1, f2, f3, t1].filter(c => c !== null);
+        let allCardsUpToRiver = [c1, c2, f1, f2, f3, t1, r1].filter(c => c !== null);
+
+        let countsFlop = {}; allCardsUpToFlop.forEach(c => { countsFlop[c.value] = (countsFlop[c.value] || 0) + 1; });
+        let countsTurn = {}; allCardsUpToTurn.forEach(c => { countsTurn[c.value] = (countsTurn[c.value] || 0) + 1; });
+        let countsRiver = {}; allCardsUpToRiver.forEach(c => { countsRiver[c.value] = (countsRiver[c.value] || 0) + 1; });
+
+        // --- 1. ODDS FÖR PAR ---
+        let currentPairPerc = 0;
+        let highPairVal = Math.max(getCardValueNum(c1.value), getCardValueNum(c2.value));
+        
+        let absoluteHighestPairStr = null;
+        let absoluteHighestPairVal = 0;
+        let activeCountsForPair = riverReady ? countsRiver : (turnReady ? countsTurn : countsFlop);
+        
+        for (let val in activeCountsForPair) {
+            if (activeCountsForPair[val] >= 2) {
+                let vNum = getCardValueNum(val);
+                if (vNum > absoluteHighestPairVal) {
+                    absoluteHighestPairVal = vNum;
+                    absoluteHighestPairStr = val;
+                }
+            }
+        }
+
+        if (isPocket) {
+            pairType.textContent = t('c_pocket_pair_in', { card: formatPokerName(c1.value) });
+            pairFracFlop.textContent = t('status_done'); pairPercFlop.textContent = "100%";
+            pairFracTurn.textContent = t('status_done'); pairPercTurn.textContent = "100%";
+            pairFracRiver.textContent = t('status_done'); pairPercRiver.textContent = "100%";
+            currentPairPerc = 100;
+        } else if (absoluteHighestPairStr !== null) {
+            pairType.textContent = t('c_pair_in', { card: formatPokerName(absoluteHighestPairStr) });
+            highPairVal = absoluteHighestPairVal;
+            
+            if (flopReady) pairFracFlop.textContent = t('status_board');
+            pairPercFlop.textContent = "100%";
+            pairFracTurn.textContent = t('status_done'); pairPercTurn.textContent = "100%";
+            pairFracRiver.textContent = t('status_done'); pairPercRiver.textContent = "100%";
+            currentPairPerc = 100;
+        } else {
+            let maxCardStr = highPairVal === 14 ? 'AA' : (highPairVal === 13 ? 'KK' : (highPairVal === 12 ? 'QQ' : (highPairVal === 11 ? 'JJ' : highPairVal + ':or')));
+            pairType.textContent = t('c_hit_top', { card: maxCardStr });
+            
+            if (!flopReady) {
+                let missFlop = (44/50) * (43/49) * (42/48);
+                pairFracFlop.textContent = t('status_combinatorics'); pairPercFlop.textContent = ((1 - missFlop) * 100).toFixed(2) + "%";
+                currentPairPerc = (1 - missFlop) * 100;
+            } else {
+                pairFracFlop.textContent = t('status_missed'); pairPercFlop.textContent = "0.00%";
+            }
+
+            pairFracTurn.textContent = turnReady ? t('status_missed') : "6/47";
+            pairPercTurn.textContent = turnReady ? "0.00%" : ((6 / 47) * 100).toFixed(2) + "%";
+            if (turnReady) currentPairPerc = 0;
+            else if (flopReady) currentPairPerc = (6 / 47) * 100;
+
+            if (riverReady) {
+                pairFracRiver.textContent = t('status_missed');
+                pairPercRiver.textContent = "0.00%";
+                currentPairPerc = 0;
+            } else {
+                pairFracRiver.textContent = "6/46";
+                pairPercRiver.textContent = ((6 / 46) * 100).toFixed(2) + "%";
+                if (turnReady) currentPairPerc = (6 / 46) * 100;
+            }
+        }
+
+        // --- 2. ODDS FÖR SET / TRISS ---
+        let maxCountFlop = Math.max(...Object.values(countsFlop), 0);
+        let maxCountTurn = Math.max(...Object.values(countsTurn), 0);
+        let maxCountRiver = Math.max(...Object.values(countsRiver), 0);
+        let currentSetPerc = 0;
+
+        let highSetVal = 0;
+        let highSetCardStr = "";
+        let activeCountsForSet = riverReady ? countsRiver : (turnReady ? countsTurn : countsFlop);
+        
+        for (let val in activeCountsForSet) {
+            if (activeCountsForSet[val] >= 3) {
+                let vNum = getCardValueNum(val);
+                if (vNum > highSetVal) { highSetVal = vNum; highSetCardStr = val; }
+            }
+        }
+        if (highSetVal === 0) {
+            for (let val in activeCountsForSet) {
+                if (activeCountsForSet[val] === 2) {
+                    let vNum = getCardValueNum(val);
+                    if (vNum > highSetVal) { highSetVal = vNum; highSetCardStr = val; }
+                }
+            }
+        }
+        if (highSetVal === 0) {
+            let v1Num = getCardValueNum(c1.value); let v2Num = getCardValueNum(c2.value);
+            highSetVal = Math.max(v1Num, v2Num);
+            highSetCardStr = v1Num > v2Num ? c1.value : c2.value;
+        }
+
+        if (isPocket && maxCountFlop < 3) {
+            setType.textContent = t('c_trips_in_pocket', { card: formatPokerName(c1.value) });
+        } else {
+            setType.textContent = t('c_trips_in', { card: formatPokerName(highSetCardStr) });
+        }
+
+        if (!flopReady) {
+            setFracFlop.textContent = t('status_comb'); setPercFlop.textContent = isPocket ? "11.80%" : "1.35%";
+            setFracTurn.textContent = "2/47"; setPercTurn.textContent = "4.26%";
+            setFracRiver.textContent = "2/46"; setPercRiver.textContent = "4.35%";
+            currentSetPerc = isPocket ? 11.80 : 1.35;
+        } else {
+            setFracFlop.textContent = maxCountFlop >= 3 ? t('status_done') : t('status_missed');
+            setPercFlop.textContent = maxCountFlop >= 3 ? "100%" : "0.00%";
+            if(flopReady) currentSetPerc = maxCountFlop >= 3 ? 100 : 0;
+
+            if (maxCountFlop >= 3) {
+                setFracTurn.textContent = t('status_done'); setPercTurn.textContent = "100%";
+                currentSetPerc = 100;
+            } else {
+                if (turnReady) {
+                    setFracTurn.textContent = maxCountTurn >= 3 ? t('status_done') : t('status_missed');
+                    setPercTurn.textContent = maxCountTurn >= 3 ? "100%" : "0.00%";
+                    currentSetPerc = maxCountTurn >= 3 ? 100 : 0;
+                } else {
+                    let setOutsTurn = isPocket ? 2 : (maxCountFlop === 2 ? 2 : 0);
+                    setFracTurn.textContent = `${setOutsTurn}/47`;
+                    setPercTurn.textContent = ((setOutsTurn / 47) * 100).toFixed(2) + "%";
+                    currentSetPerc = (setOutsTurn / 47) * 100;
+                }
+            }
+
+            if (maxCountFlop >= 3 || (turnReady && maxCountTurn >= 3)) {
+                setFracRiver.textContent = t('status_done'); setPercRiver.textContent = "100%";
+                currentSetPerc = 100;
+            } else {
+                if (riverReady) {
+                    setFracRiver.textContent = maxCountRiver >= 3 ? t('status_done') : t('status_missed');
+                    setPercRiver.textContent = maxCountRiver >= 3 ? "100%" : "0.00%";
+                    currentSetPerc = maxCountRiver >= 3 ? 100 : 0;
+                } else {
+                    let setOutsRiver = isPocket ? 2 : (turnReady ? (maxCountTurn === 2 ? 2 : 0) : (maxCountFlop === 2 ? 2 : 0));
+                    setFracRiver.textContent = `${setOutsRiver}/46`;
+                    setPercRiver.textContent = ((setOutsRiver / 46) * 100).toFixed(2) + "%";
+                    if (turnReady) currentSetPerc = (setOutsRiver / 46) * 100;
+                }
+            }
+        }
+
+        // --- 3. STEGCHANS ---
+        let v1 = getCardValueNum(c1.value); let v2 = getCardValueNum(c2.value);
+        let currentStraightPerc = 0;
+        let finalStraightHighCard = 10;
+
+        let straightFlopCheck = checkStraightPresent(allCardsUpToFlop);
+        let straightTurnCheck = checkStraightPresent(allCardsUpToTurn);
+        let straightRiverCheck = checkStraightPresent(allCardsUpToRiver);
+
+        if (!flopReady) {
+            let high = Math.max(v1, v2); let low = Math.min(v1, v2); let gap = high - low;
+            if (high === 14 && low <= 5) gap = low - 1;
+            
+            let flopProb = gap === 1 ? "1.31%" : (gap === 2 ? "0.96%" : (gap === 3 ? "0.65%" : "0.32%"));
+            if (gap >= 5 || v1 === v2) flopProb = "0.00%";
+
+            typeBoxStraight.textContent = v1 === v2 ? t('c_pocket_pair_runner') : t('c_preflop_draw');
+            straightFracFlop.textContent = t('status_comb'); straightPercFlop.textContent = flopProb;
+            straightFracTurn.textContent = "Drag"; straightPercTurn.textContent = v1 === v2 ? "0.00%" : "17.02%";
+            straightFracRiver.textContent = "Drag"; straightPercRiver.textContent = v1 === v2 ? "1.50%" : "17.39%";
+            currentStraightPerc = parseFloat(flopProb);
+        } else {
+            let activeValuesForText = r1 ? allCardsUpToRiver : (t1 ? allCardsUpToTurn : allCardsUpToFlop);
+            let textOuts = 0;
+            for (let testVal = 2; testVal <= 14; testVal++) {
+                let simArray = activeValuesForText.concat([{ value: testVal.toString(), suit: '♠' }]);
+                if (checkStraightPresent(simArray).hasStraight) textOuts += 4;
+            }
+            if (textOuts > 12) textOuts = 8;
+
+            if (straightRiverCheck.hasStraight || straightTurnCheck.hasStraight || straightFlopCheck.hasStraight) {
+                let bestStraight = straightRiverCheck.hasStraight ? straightRiverCheck : (straightTurnCheck.hasStraight ? straightTurnCheck : straightFlopCheck);
+                typeBoxStraight.textContent = t('c_straight_to', { card: bestStraight.highCard === 14 ? t('word_ace') : bestStraight.highCard });
+            } else if (textOuts === 8) {
+                typeBoxStraight.textContent = t('c_open_ended');
+            } else if (textOuts === 4) {
+                typeBoxStraight.textContent = t('c_gutshot');
+            } else {
+                typeBoxStraight.textContent = t('c_no_straight_draw');
+            }
+
+            if (straightFlopCheck.hasStraight) {
+                straightFracFlop.textContent = t('status_done'); straightPercFlop.textContent = "100%";
+                currentStraightPerc = 100; finalStraightHighCard = straightFlopCheck.highCard;
+            } else {
+                straightFracFlop.textContent = t('status_none'); straightPercFlop.textContent = "0.00%";
+            }
+
+            if (straightTurnCheck.hasStraight) {
+                straightFracTurn.textContent = t('status_done'); straightPercTurn.textContent = "100%";
+                currentStraightPerc = 100; finalStraightHighCard = straightTurnCheck.highCard;
+            } else {
+                let outsTurn = 0;
+                for (let testVal = 2; testVal <= 14; testVal++) {
+                    let simArray = allCardsUpToFlop.concat([{ value: testVal.toString(), suit: '♠' }]);
+                    if (checkStraightPresent(simArray).hasStraight) outsTurn += 4;
+                }
+                if (outsTurn > 12) outsTurn = 8;
+                
+                straightFracTurn.textContent = t1 ? t('status_missed') : `${outsTurn}/47`; 
+                straightPercTurn.textContent = t1 ? "0.00%" : ((outsTurn/47)*100).toFixed(2) + "%";
+                if (!t1) currentStraightPerc = (outsTurn/47) * 100;
+            }
+
+            if (straightRiverCheck.hasStraight) {
+                straightFracRiver.textContent = t('status_done'); 
+                straightPercRiver.textContent = "100%";
+                currentStraightPerc = 100; 
+                finalStraightHighCard = straightRiverCheck.highCard;
+            } else {
+                if (r1) {
+                    straightFracRiver.textContent = t('status_missed'); 
+                    straightPercRiver.textContent = "0.00%";
+                    currentStraightPerc = 0;
+                } else {
+                    let activeValuesForOuts = t1 ? allCardsUpToTurn : allCardsUpToFlop;
+                    let outsRiver = 0;
+                    for (let testVal = 2; testVal <= 14; testVal++) {
+                        let simArray = activeValuesForOuts.concat([{ value: testVal.toString(), suit: '♠' }]);
+                        if (checkStraightPresent(simArray).hasStraight) outsRiver += 4;
+                    }
+                    if (outsRiver > 12) outsRiver = 8; 
+
+                    straightFracRiver.textContent = `${outsRiver}/46`; 
+                    straightPercRiver.textContent = ((outsRiver/46)*100).toFixed(2) + "%";
+                    if (t1) currentStraightPerc = (outsRiver/46) * 100;
+                }
+            }
+        }
+
+        // --- 4. FÄRGCHANS ---
+        let suitCountsFlop = {}; allCardsUpToFlop.forEach(c => { suitCountsFlop[c.suit] = (suitCountsFlop[c.suit] || 0) + 1; });
+        let suitCountsTurn = {}; allCardsUpToTurn.forEach(c => { suitCountsTurn[c.suit] = (suitCountsTurn[c.suit] || 0) + 1; });
+        let suitCountsRiver = {}; allCardsUpToRiver.forEach(c => { suitCountsRiver[c.suit] = (suitCountsRiver[c.suit] || 0) + 1; });
+
+        let maxSuitFlop = Math.max(...Object.values(suitCountsFlop), 0);
+        let maxSuitTurn = Math.max(...Object.values(suitCountsTurn), 0);
+        let maxSuitRiver = Math.max(...Object.values(suitCountsRiver), 0);
+        let currentFlushPerc = 0;
+
+        const suitNames = SUIT_NAMES[currentLanguage] || SUIT_NAMES.sv;
+        let activeSuit = "";
+        if (c1.suit === c2.suit) {
+            activeSuit = suitNames[c1.suit];
+        } else {
+            let currentCounts = t1 ? suitCountsTurn : suitCountsFlop;
+            let leadingSuit = Object.keys(currentCounts).find(key => currentCounts[key] === Math.max(...Object.values(currentCounts)));
+            if (currentCounts[c1.suit] === currentCounts[c2.suit]) {
+                activeSuit = `${suitNames[c1.suit]}/${suitNames[c2.suit]}`;
+            } else {
+                activeSuit = suitNames[leadingSuit] || `${suitNames[c1.suit]}/${suitNames[c2.suit]}`;
+            }
+        }
+
+        let currentMaxSuit = r1 ? maxSuitRiver : (t1 ? maxSuitTurn : maxSuitFlop);
+        if (currentMaxSuit >= 5) {
+            typeBoxFlush.textContent = t('c_flush_in', { suit: activeSuit });
+        } else if (currentMaxSuit === 4) {
+            typeBoxFlush.textContent = t('c_flush_draw_in', { suit: activeSuit });
+        } else {
+            typeBoxFlush.textContent = t('c_no_flush_draw');
+        }
+
+        if (!flopReady) {
+            if (c1.suit === c2.suit) {
+                flushFracFlop.textContent = t('status_comb'); flushPercFlop.textContent = "6.24%";
+                currentFlushPerc = 6.24;
+            } else {
+                flushFracFlop.textContent = t('status_comb'); flushPercFlop.textContent = "0.20%";
+                currentFlushPerc = 0.20;
+            }
+        } else {
+            flushFracFlop.textContent = maxSuitFlop >= 5 ? t('status_done') : t('status_board');
+            flushPercFlop.textContent = "100%";
+            if(flopReady) currentFlushPerc = maxSuitFlop >= 5 ? 100 : 0;
+
+            if (maxSuitFlop >= 5) {
+                flushFracTurn.textContent = t('status_done'); flushPercTurn.textContent = "100%";
+                currentFlushPerc = 100;
+            } else {
+                if (t1) {
+                    flushFracTurn.textContent = maxSuitTurn >= 5 ? t('status_done') : t('status_missed');
+                    flushPercTurn.textContent = maxSuitTurn >= 5 ? "100%" : "0.00%";
+                    currentFlushPerc = maxSuitTurn >= 5 ? 100 : 0;
+                } else {
+                    let flushOutsTurn = (maxSuitFlop === 4) ? 9 : 0;
+                    flushFracTurn.textContent = `${flushOutsTurn}/47`;
+                    flushPercTurn.textContent = ((flushOutsTurn / 47) * 100).toFixed(2) + "%";
+                    currentFlushPerc = (flushOutsTurn / 47) * 100;
+                }
+            }
+
+            if (maxSuitFlop >= 5 || (t1 && maxSuitTurn >= 5)) {
+                flushFracRiver.textContent = t('status_done'); flushPercRiver.textContent = "100%";
+                currentFlushPerc = 100;
+            } else {
+                if (r1) {
+                    flushFracRiver.textContent = maxSuitRiver >= 5 ? t('status_done') : t('status_missed');
+                    flushPercRiver.textContent = maxSuitRiver >= 5 ? "100%" : "0.00%";
+                    currentFlushPerc = maxSuitRiver >= 5 ? 100 : 0;
+                } else {
+                    let flushOutsRiver = t1 ? (maxSuitTurn === 4 ? 9 : 0) : (maxSuitFlop === 4 ? 9 : 0);
+                    flushFracRiver.textContent = `${flushOutsRiver}/46`;
+                    flushPercRiver.textContent = ((flushOutsRiver / 46) * 100).toFixed(2) + "%";
+                    if (t1) currentFlushPerc = (flushOutsRiver / 46) * 100;
+                }
+            }
+        }
+
+        // --- 5. KÅKCHANS ---
+        let currentFHPerc = 0;
+        let boardCards = [f1, f2, f3, t1, r1].filter(c => c !== null);
+        let boardCounts = {}; boardCards.forEach(c => { boardCounts[c.value] = (boardCounts[c.value] || 0) + 1; });
+        
+        let pairsOnBoard = 0; let tripsOnBoard = 0;
+        let highBoardPairVal = 0;
+        let highBoardPairStr = "";
+
+        for (let val in boardCounts) { 
+            if (boardCounts[val] === 2) {
+                pairsOnBoard++; 
+                let vNum = getCardValueNum(val);
+                if (vNum > highBoardPairVal) { highBoardPairVal = vNum; highBoardPairStr = val; }
+            }
+            if (boardCounts[val] === 3) tripsOnBoard++; 
+        }
+
+        let tripsFlop = 0; let pairsFlop = 0; for (let val in countsFlop) { if (countsFlop[val] === 2) pairsFlop++; if (countsFlop[val] === 3) tripsFlop++; }
+        let tripsTurn = 0; let pairsTurn = 0; for (let val in countsTurn) { if (countsTurn[val] === 2) pairsTurn++; if (countsTurn[val] === 3) tripsTurn++; }
+        let tripsRiver = 0; let pairsRiver = 0; for (let val in countsRiver) { if (countsRiver[val] === 2) pairsRiver++; if (countsRiver[val] === 3) tripsRiver++; }
+
+        let isFHFlop = (tripsFlop >= 1 && pairsFlop >= 1) || (tripsFlop >= 2);
+        let isFHTurn = (tripsTurn >= 1 && pairsTurn >= 1) || (tripsTurn >= 2);
+        let isFHRiver = (tripsRiver >= 1 && pairsRiver >= 1) || (tripsRiver >= 2) || (Object.values(countsRiver).some(c => c >= 4));
+
+        let myHighNum = Math.max(getCardValueNum(c1.value), getCardValueNum(c2.value));
+        let highFHCardStr = getCardValueNum(c1.value) > getCardValueNum(c2.value) ? c1.value : c2.value;
+        
+        if (highBoardPairVal > myHighNum) {
+            highFHCardStr = highBoardPairStr;
+        }
+
+        let activeCountsForFH = r1 ? countsRiver : (t1 ? countsTurn : countsFlop);
+        let foundTripsVal = 0;
+        let foundTripsStr = "";
+        
+        for(let val in activeCountsForFH) {
+            if (activeCountsForFH[val] === 3) {
+                let vNum = getCardValueNum(val);
+                if (vNum > foundTripsVal) {
+                    foundTripsVal = vNum;
+                    foundTripsStr = val;
+                }
+            }
+        }
+        if (foundTripsVal > 0) {
+            highFHCardStr = foundTripsStr; 
+        }
+
+        let formattedFHName = formatPokerName(highFHCardStr);
+
+        if (isFHFlop || (t1 && isFHTurn) || (r1 && isFHRiver)) {
+            typeBoxFullHouse.textContent = t('c_full_house_high', { card: formattedFHName });
+        } else {
+            typeBoxFullHouse.textContent = t('c_full_house_draw_high', { card: formattedFHName });
+        }
+
+        if (!flopReady) {
+            if (isPocket) {
+                fhFracFlop.textContent = t('status_comb'); fhPercFlop.textContent = "0.98%";
+                currentFHPerc = 0.98;
+            } else {
+                fhFracFlop.textContent = t('status_comb'); fhPercFlop.textContent = "0.09%";
+                currentFHPerc = 0.09;
+            }
+        } else {
+            fhFracFlop.textContent = isFHFlop ? t('status_done') : t('status_board');
+            fhPercFlop.textContent = isFHFlop ? "100%" : "0.00%";
+            if (flopReady) currentFHPerc = isFHFlop ? 100 : 0;
+
+            if (isFHFlop) {
+                fhFracTurn.textContent = t('status_done'); fhPercTurn.textContent = "100%";
+                currentFHPerc = 100;
+            } else {
+                if (t1) {
+                    fhFracTurn.textContent = isFHTurn ? t('status_done') : t('status_missed');
+                    fhPercTurn.textContent = isFHTurn ? "100%" : "0.00%";
+                    currentFHPerc = isFHTurn ? 100 : 0;
+                } else {
+                    let fhOutsTurn = 0;
+                    if (isPocket) {
+                        fhOutsTurn = (pairsOnBoard >= 1) ? (pairsOnBoard * 2 + 2) : 0;
+                    } else {
+                        if (tripsFlop === 1) fhOutsTurn = 6; 
+                        else if (pairsFlop >= 2) fhOutsTurn = 4; 
+                    }
+                    fhOutsTurn = Math.min(fhOutsTurn, 47);
+                    fhFracTurn.textContent = `${fhOutsTurn}/47`;
+                    fhPercTurn.textContent = ((fhOutsTurn / 47) * 100).toFixed(2) + "%";
+                    currentFHPerc = (fhOutsTurn / 47) * 100;
+                }
+            }
+
+            if (isFHFlop || (t1 && isFHTurn)) {
+                fhFracRiver.textContent = t('status_done'); fhPercRiver.textContent = "100%";
+                currentFHPerc = 100;
+            } else {
+                if (r1) {
+                    fhFracRiver.textContent = isFHRiver ? t('status_done') : t('status_missed');
+                    fhPercRiver.textContent = isFHRiver ? "100%" : "0.00%";
+                    currentFHPerc = isFHRiver ? 100 : 0;
+                } else {
+                    let fhOutsRiver = 0;
+                    let currentPairsOnBoard = 0;
+                    let activeBoardCards = t1 ? [f1, f2, f3, t1] : [f1, f2, f3];
+                    let tempCounts = {}; activeBoardCards.forEach(c => { tempCounts[c.value] = (tempCounts[c.value] || 0) + 1; });
+                    for(let val in tempCounts) {
+                        if (tempCounts[val] === 2) currentPairsOnBoard++;
+                    }
+
+                    let currentTripsTotal = t1 ? tripsTurn : tripsFlop;
+
+                    if (isPocket) {
+                        if (currentTripsTotal === 1) {
+                            fhOutsRiver = 9;
+                        } else {
+                            fhOutsRiver = (currentPairsOnBoard >= 1) ? (currentPairsOnBoard * 2 + 2) : 0;
+                        }
+                    } else {
+                        if (currentTripsTotal === 1) fhOutsRiver = 9; 
+                        else if ((t1 ? pairsTurn : pairsFlop) >= 2) fhOutsRiver = 4;
+                    }
+
+                    fhOutsRiver = Math.min(fhOutsRiver, 46);
+                    fhFracRiver.textContent = `${fhOutsRiver}/46`;
+                    fhPercRiver.textContent = ((fhOutsRiver / 46) * 100).toFixed(2) + "%";
+                    if (t1) currentFHPerc = (fhOutsRiver / 46) * 100;
+                }
+            }
+        }
+      } else {
+        // --- PLO-LÄGE ---
+        // De exakta "outs/formel"-kolumnerna ovan (Flop/Turn/River Formel + %)
+        // är hårdkodade kombinatorik-formler som förutsätter att man använder
+        // EXAKT 2 fasta hålkort (Hold'em-regeln). I Omaha måste man visserligen
+        // också använda exakt 2 hålkort, men VILKA 2 av de 4/5 man har varierar
+        // per simulerad utdelning - det finns ingen enda fast formel att räkna
+        // ut för hand längre. Att återanvända Hold'em-formlerna hade gett
+        // siffror som ser exakta ut men är fel. Vi visar därför "Sim." här och
+        // hänvisar till Monte Carlo-kolumnerna till höger, som räknar rätt för
+        // båda spelen eftersom de simulerar faktiska utdelningar.
+        const placeholders = [
+            [pairType, pairFracFlop, pairPercFlop, pairFracTurn, pairPercTurn, pairFracRiver, pairPercRiver],
+            [setType, setFracFlop, setPercFlop, setFracTurn, setPercTurn, setFracRiver, setPercRiver],
+            [typeBoxStraight, straightFracFlop, straightPercFlop, straightFracTurn, straightPercTurn, straightFracRiver, straightPercRiver],
+            [typeBoxFlush, flushFracFlop, flushPercFlop, flushFracTurn, flushPercTurn, flushFracRiver, flushPercRiver],
+            [typeBoxFullHouse, fhFracFlop, fhPercFlop, fhFracTurn, fhPercTurn, fhFracRiver, fhPercRiver]
+        ];
+        for (const [typeBox, fFlop, pFlop, fTurn, pTurn, fRiver, pRiver] of placeholders) {
+            typeBox.textContent = t('omaha_formula_na_type');
+            fFlop.textContent = t('omaha_formula_na'); pFlop.textContent = '–';
+            fTurn.textContent = t('omaha_formula_na'); pTurn.textContent = '–';
+            fRiver.textContent = t('omaha_formula_na'); pRiver.textContent = '–';
+        }
+      }
+
+        // --- MONTE CARLO EQUITIES ---
+        // Den här delen är betydligt tyngre i PLO än i Hold'em: varje
+        // handutvärdering provar ALLA lagliga 2-hålkort×3-bordkort-kombinationer
+        // (6× fler i PLO4, 10× fler i PLO5) istället för en enda evaluering.
+        // Två saker görs därför för att det aldrig ska kännas som att appen
+        // har fastnat:
+        //   1) Antal iterationer skalas ner för PLO (se iterations-variablerna
+        //      nedan) - fortfarande statistiskt stabilt, men mycket snabbare.
+        //   2) Själva beräkningen skjuts upp en tick (setTimeout) EFTER att en
+        //      "Beräknar..."-indikator redan hunnit visas/ritas, istället för
+        //      att blockera tråden direkt och synas som en frysning.
+        const mainIterations = (handSize === 2) ? 2222 : (handSize === 4 ? 500 : 300);
+        const streetIterations = (handSize === 2) ? 800 : (handSize === 4 ? 200 : 120);
+
+        const calcBadge = ODDS_DOM.calcBadge;
+        if (calcBadge) calcBadge.style.display = '';
+        [pairPlayerWin, setPlayerWin, straightPlayerWin, flushPlayerWin, fhPlayerWin].forEach(el => { if (el) el.textContent = '…'; });
+        if (totalWinChance) totalWinChance.textContent = '…';
+
+        if (oddsEngineCalcTimer !== null) clearTimeout(oddsEngineCalcTimer);
+        oddsEngineCalcTimer = setTimeout(runMonteCarloAndAdvice, 10);
+
+        function runMonteCarloAndAdvice() {
+            if (calcBadge) calcBadge.style.display = 'none';
+
+            // rangeFilter === null betyder "Alla" (helt slumpmässiga motståndarhänder).
+            // getOpponentRangeFilter() väljer automatiskt Chen-formeln (Hold'em) eller
+            // PLO-poängheuristiken (Omaha) utifrån handSize - se ranges.js.
+            let rangeFilter = getOpponentRangeFilter(currentOpponentRange, handSize);
+            let currentBoard = [f1, f2, f3, t1, r1];
+            let equities = calculateTrueEquity(holeCardsActive, currentBoard, N, mainIterations, rangeFilter, handSize);
+
+            pairPlayerFormula.innerHTML = t('status_simulated');
+            setPlayerFormula.innerHTML  = t('status_simulated');
+            straightPlayerFormula.innerHTML = t('status_simulated');
+            flushPlayerFormula.innerHTML = t('status_simulated');
+            fhPlayerFormula.innerHTML    = t('status_simulated');
+
+            pairPlayerWin.textContent = equities.pair.toFixed(2) + "%";
+            setPlayerWin.textContent = equities.set.toFixed(2) + "%";
+            straightPlayerWin.textContent = equities.straight.toFixed(2) + "%";
+            flushPlayerWin.textContent = equities.flush.toFixed(2) + "%";
+            fhPlayerWin.textContent = equities.fh.toFixed(2) + "%";
+
+            // OBS: equities.high (vinster helt utan par) räknas med här så att "Total vinstchans"
+            // fortfarande motsvarar den fulla vinstsannolikheten, men den visas inte i någon
+            // enskild rad i tabellen eftersom ingen rad representerar "ingen hand alls".
+            let totalEquity = equities.pair + equities.set + equities.straight + equities.flush + equities.fh + equities.high;
+            if (totalWinChance) {
+                totalWinChance.textContent = totalEquity.toFixed(1) + "%";
+            }
+
+            // Gör den senaste equity-siffran tillgänglig för potOdds.js och uppdatera
+            // pott-odds-rutan direkt (utan att räkna om Monte Carlo-simuleringen igen).
+            potOddsState.lastTotalEquity = totalEquity;
+            updatePotOddsUI();
+
+            // --- EQUITY PER GATA (Preflop -> Flop -> Turn -> River) ---
+            let equityHistory = calculateEquityByStreet(holeCardsActive, f1, f2, f3, t1, r1, baselinePlayerCount, streetIterations, rangeFilter, handSize);
+            if (equityHistory.length > 0) {
+                // Använd den redan beräknade (mer exakta) siffran för aktuell
+                // gata istället för att simulera den en gång till.
+                equityHistory[equityHistory.length - 1].value = totalEquity;
+            }
+            lastEquityHistory = equityHistory;
+            renderEquityChart('equityChartContainer', equityHistory);
+
+            // --- STRATEGISK BESLUTSLOGIK ---
+            if (holeCardsActive.length === handSize) {
+                let fairShare = 100 / N;
+
+                let positionModifier = 1.0;
+                if (currentPosition === 'UTG') positionModifier = 1.25;
+                if (currentPosition === 'CO') positionModifier = 1.05;
+                if (currentPosition === 'BTN') positionModifier = 0.90;
+
+                let foldThreshold = fairShare * 1.2 * positionModifier;
+                let raiseThreshold = fairShare * 1.8 * positionModifier;
+
+                if (totalEquity < foldThreshold) {
+                    advFold.className = "advisor-box active-fold";
+                } else if (totalEquity >= foldThreshold && totalEquity < raiseThreshold) {
+                    advCall.className = "advisor-box active-call";
+                } else if (totalEquity >= raiseThreshold) {
+                    advRaise.className = "advisor-box active-raise";
+                }
+            }
+        }
+    }
+
+    // Dessa nio funktioner anropas direkt från inline onclick/onchange-attribut
+    // i HTML:en (t.ex. onclick="setGameMode('plo4')"). De är redan globala
+    // (klassiskt skript, delad global scope), men skrivs ut explicit här som
+    // en tydlig lista över vad HTML:en faktiskt beror på.
+    window.setPlayerPosition = setPlayerPosition;
+    window.setOpponentRange = setOpponentRange;
+    window.setGameMode = setGameMode;
+    window.adjustPlayers = adjustPlayers;
+    window.validateAndUdpatePlayers = validateAndUdpatePlayers;
+    window.setActiveSlot = setActiveSlot;
+    window.randomizeModule = randomizeModule;
+    window.clearModule = clearModule;
+    window.clearAllCards = clearAllCards;
+
+    // --- INIT ---
+    applyStaticTranslations();
+    updateLangButtonsUI();
+    // Sätt korrekt slot-synlighet/knapp-highlight för default-läget (Hold'em)
+    // utan att köra en extra clearAllCards() (inget är ifyllt vid sidladdning ändå).
+    for (let i = 0; i < 5; i++) {
+        const wrapper = document.getElementById(`slotWrapH${i}`);
+        if (wrapper) wrapper.style.display = (i < getHandSize()) ? '' : 'none';
+    }
+    document.querySelectorAll('.btn-gamemode').forEach(b => {
+        if (b.getAttribute('data-mode') === gameMode) b.classList.add('selected');
+        else b.classList.remove('selected');
+    });
+    setActiveSlot('H', 0);
+    updatePotOddsUI();
+    renderEquityChart('equityChartContainer', []);
+
+    // Hantera app-genvägar (jump list/shortcuts från Windows m.fl.):
+    // ?mode=holdem|plo4|plo5 väljer spelvariant direkt vid uppstart.
+    const shortcutMode = new URLSearchParams(window.location.search).get('mode');
+    if (['holdem', 'plo4', 'plo5'].includes(shortcutMode)) {
+        setGameMode(shortcutMode);
+    }
+
+    // Räkna om oddsmotorn på nytt språk direkt vid språkbyte (se i18n.js för
+    // varför detta sker via en lyssnare istället för att setLanguage() i
+    // i18n.js anropar updateOddsEngine() direkt - i18n.js laddas FÖRE ui.js,
+    // så den kan inte känna till en funktion som definieras här än).
+    onLanguageChange(() => updateOddsEngine());
+
+    // Rita om equity-per-gata-grafen om fönstret ändrar storlek, eftersom
+    // grafen mäter sin containers faktiska pixelbredd vid ritning.
+    let equityChartResizeTimer = null;
+    window.addEventListener('resize', () => {
+        clearTimeout(equityChartResizeTimer);
+        equityChartResizeTimer = setTimeout(() => {
+            renderEquityChart('equityChartContainer', lastEquityHistory);
+        }, 150);
+    });
+
+</script>
+
+<script>
+    // Registrera service worker för offline-stöd och installerbarhet (PWA).
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch((err) => {
+                console.warn('Service worker-registrering misslyckades:', err);
+            });
+        });
+    }
+</script>
+
+</body>
+</html>
